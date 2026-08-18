@@ -38,13 +38,33 @@ class HandleInertiaRequests extends Middleware
     {
         [$message, $author] = str(Inspiring::quotes()->random())->explode('-');
 
-        return array_merge(parent::share($request), [
+        $usuario = $request->user();
+
+        return [
             ...parent::share($request),
             'name' => config('app.name'),
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth' => [
-                'user' => $request->user(),
+                /*
+                 * Subconjunto explicito, nao o model inteiro.
+                 *
+                 * `users.login` e o CPF quando o usuario e paciente (RN-04). Serializar
+                 * o model completo para o frontend colocaria CPF em toda pagina, em
+                 * texto claro no HTML inicial e em cada resposta do Inertia -- exatamente
+                 * o tipo de vazamento silencioso que a doc 14.2 pede para evitar.
+                 */
+                'user' => $usuario === null ? null : [
+                    'id' => $usuario->id,
+                    'name' => $usuario->name,
+                    'email' => $usuario->email,
+                    'tipo' => $usuario->tipo,
+                    'senha_provisoria' => $usuario->senha_provisoria,
+                ],
+
+                // Navegacao por perfil: cada usuario ve so o que pode acessar.
+                'roles' => $usuario?->getRoleNames() ?? [],
+                'permissoes' => $usuario?->getAllPermissions()->pluck('name') ?? [],
             ],
-        ]);
+        ];
     }
 }

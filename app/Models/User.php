@@ -81,4 +81,24 @@ class User extends Authenticatable
     {
         return $this->bloqueado_ate !== null && $this->bloqueado_ate->isFuture();
     }
+
+    public function ehAdmin(): bool
+    {
+        return $this->tipo === 'ADMIN';
+    }
+
+    public function ehPaciente(): bool
+    {
+        return $this->tipo === 'PACIENTE';
+    }
+
+    /**
+     * doc 13.5: o "minimo vital" e a quebra de sigilo exigem profissional EM PLANTAO,
+     * nao apenas profissional cadastrado. Quem nao esta de plantao nao tem motivo
+     * assistencial para abrir prontuario nenhum.
+     */
+    public function emPlantao(): bool
+    {
+        return $this->profissional?->emPlantao() ?? false;
+    }
 }

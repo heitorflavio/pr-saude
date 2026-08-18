@@ -20,6 +20,8 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
+            // A matriz RBAC vem primeiro: tudo o mais depende de haver papéis.
+            RbacSeeder::class,
             ClassificacaoRiscoSeeder::class,
             Cid10Seeder::class,
             QueixaSeeder::class,

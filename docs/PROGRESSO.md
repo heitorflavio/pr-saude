@@ -9,8 +9,8 @@ testes que passam e as pendências.
 |---|---|---|
 | 0 | Inspeção do projeto | ✅ |
 | 1 | Fundação do banco | ✅ |
-| 2 | Autenticação e autorização | ⬜ próxima |
-| 3 | Cadastro de paciente | ⬜ |
+| 2 | Autenticação e autorização | ✅ |
+| 3 | Cadastro de paciente | ⬜ próxima |
 | 4 | Token, QR Code e pulseira | ⬜ |
 | 5 | Atendimento e máquina de estados | ⬜ |
 | 6 | Triagem e classificação de risco | ⬜ |
@@ -22,7 +22,7 @@ testes que passam e as pendências.
 | 12 | Auditoria e indicadores | ⬜ |
 | 13 | Fechamento | ⬜ |
 
-**Testes:** `php artisan test` → **48 passando, 102 asserções** (~13 s, MySQL).
+**Testes:** `php artisan test` → **107 passando, 720 asserções** (~90 s, MySQL).
 
 ---
 
@@ -155,32 +155,132 @@ verificações de invariante:
 
 ### Pendências que a Fase 1 deixa em aberto
 
-1. **CI ainda usa SQLite** (`.github/workflows/tests.yml`). Precisa de *service
-   container* MySQL, senão o CI não exercita `CHECK` nem coluna gerada — exatamente o
-   que esta fase construiu. **Requer decisão.**
-2. **`users.login` e `users.tipo` nullable** (D-14). Aperta na Fase 2, junto com a
-   remoção da rota pública de cadastro.
-3. **Rota de auto-exclusão de conta** do starter kit (D-15). Revisitar na Fase 2.
-4. **`docs/privilegios.sql`** — `REVOKE UPDATE, DELETE` nas tabelas append-only. O
+1. ~~CI ainda usa SQLite~~ — **resolvido na Fase 2** (D-21).
+2. ~~`users.login` e `users.tipo` nullable~~ — **resolvido na Fase 2** (D-14 fechada).
+3. ~~Rota de auto-exclusão de conta~~ — **removida na Fase 2** (D-18).
+4. **`docs/privilegios.sql`** (ainda aberto) — `REVOKE UPDATE, DELETE` nas tabelas append-only. O
    prompt aloca na Fase 13; as tabelas alvo já existem desde agora.
 
 ---
 
-## ⬜ Fase 2 — Autenticação e autorização
+## ✅ Fase 2 — Autenticação e autorização (2026-08-18)
+
+### Entregue
+
+**Guards e sessão**
+
+- `config/auth.php`: guards `web` (equipe) e `paciente`, com providers `profissionais` e
+  `pacientes` sobre o mesmo model `User` (D-02). Brokers de senha separados, 60 min para
+  a equipe e 30 para o paciente.
+- Middleware `ExpirarSessao`: 30 min para a equipe, 15 para o paciente (RNF-09/RNF-10).
+  O Laravel tem um único `session.lifetime` — a janela por guard é carimbada na sessão e
+  verificada a cada request (D-12).
+
+**Hashing**
+
+- `config/hashing.php` com `driver = argon2id` (RNF-07), 64 MiB / 4 iterações — acima do
+  piso do PHP e dentro da faixa recomendada pelo OWASP. A suíte usa o mínimo do PHP para
+  não pagar ~50 ms por usuário criado.
+
+**Autorização em duas camadas**
+
+- `RbacSeeder`: **8 roles** e **42 permissions**, transcrevendo a matriz da doc §2.3
+  célula por célula, todas com `guard_name = 'web'`.
+- **6 Policies** registradas explicitamente em `AuthServiceProvider`: `PacientePolicy`
+  (`verContexto`, `verMinimoVital`, `quebrarSigilo`, `imprimirPulseira`),
+  `AtendimentoPolicy` (RN-12 + a nota ¹ do laboratório), `RegistroClinicoPolicy`,
+  `PrescricaoPolicy`, `AdministracaoPolicy` (RN-22), `ExameResultadoPolicy` (RN-24/RN-25).
+- `Gate::before` libera o `admin` — **exceto** `prontuario.quebra_sigilo`, coberta pelos
+  dois nomes por que é consultada (permission e método da Policy). Ver a ressalva em D-20.
+
+**Middlewares**
+
+- `SenhaProvisoria` (RN-06), `ExpirarSessao` (RNF-09/10) — globais no grupo `web`.
+- `auditar` → `RegistrarAuditoria` e `vinculo` → `ExigirVinculoAssistencial` (RN-28),
+  como aliases para uso por rota.
+
+**Auditoria**
+
+- `AuditoriaService` (doc §14.3): registra leitura e escrita, grava o snapshot das roles
+  no instante do evento e mascara `password`, `token_pulseira`, `cpf` e `cns` — inclusive
+  em estruturas aninhadas.
+
+**Interface**
+
+- `HandleInertiaRequests` compartilha `roles` e `permissoes`, e um **subconjunto** do
+  usuário em vez do model inteiro — `users.login` é o CPF do paciente (D-22).
+- Composable `usePermissoes` e `AppSidebar` com navegação filtrada por perfil: cada
+  usuário vê só o que pode acessar.
+- Tela `auth/SenhaProvisoria.vue`.
+
+**Fechamento de dívidas**
+
+- `users.login` e `users.tipo` passaram a **`NOT NULL`** (fecha D-14).
+- Removidos o cadastro público e a auto-exclusão de conta (D-18).
+- CI passou a rodar com service container MySQL (D-21, fecha a pendência de D-04/D-13).
+
+### Definition of done
+
+| Critério | Estado |
+|---|---|
+| Teste percorrendo a matriz RBAC, com os negativos | ✅ 8 roles × 42 permissions |
+| Teste provando que o guard `paciente` recebe `false` em qualquer `can()` | ✅ |
+
+### Testes
+
+`php artisan test` → **107 passando, 720 asserções**.
+
+- `AutorizacaoTest` (20 testes, 537 asserções) — cada role é verificada contra a matriz
+  **inteira**: o que ela tem e, principalmente, tudo o que ela não tem. Inclui as
+  negativas nomeadas (recepção sem escrita clínica, técnico sem prescrever, laboratório
+  sem prontuário, auditor só com a trilha) e as três garantias de RN-27.
+- `PolicyTest` (19 testes) — vínculo assistencial pelas quatro origens, mínimo vital
+  liberado sem vínculo mas negado fora de plantão, RN-12, a restrição do laboratório às
+  transições de exame, dupla checagem recusando o próprio executor, RN-25.
+- `AuditoriaTest` (8 testes) — mascaramento raso e aninhado, snapshot de perfis, log de
+  leitura, e a consulta "quem acessou os dados deste paciente nos últimos 90 dias?".
+- `AutenticacaoTest` (14 testes) — Argon2id no hash real, expiração de sessão com
+  `travel()`, RN-06 em quatro cenários, ausência da rota de cadastro, `login`/`tipo`
+  obrigatórios e únicos.
+
+### Decisões tomadas nesta fase
+
+| Decisão | Registro |
+|---|---|
+| Removidos cadastro público e auto-exclusão de conta | D-18 |
+| `prontuario.criar` dividida em nota médica / evolução de enfermagem | D-19 |
+| `Gate::before` dá ao admin mais poder que a matriz — **ressalva registrada** | D-20 |
+| CI com service container MySQL | D-21 |
+| Inertia compartilha subconjunto do usuário, não o model | D-22 |
+| Equipe segue autenticando por e-mail, não por matrícula | D-23 |
+
+### Pendências que a Fase 2 deixa em aberto
+
+1. **`Gate::before` permite ao admin escrever no prontuário** (D-20). Implementado como o
+   prompt §5 pede, mas contraria a intenção da matriz da doc §2.3, que dá ao admin apenas
+   leitura nas linhas clínicas. **Recomendo restringir o atalho a permissões
+   administrativas — requer sua decisão.**
+2. **Login da equipe ainda é por e-mail** (D-23), não por `users.login`. Resolver quando
+   existir a gestão de usuários da equipe.
+3. **A suíte leva ~90 s**, dominada pelo `RbacSeeder` rodando a cada teste (42 permissions
+   × 8 roles). Otimizável com um trait que semeie uma vez por classe.
+4. `portal.login` e `portal.senha`, referenciados pelos middlewares, só existem na
+   Fase 11. Hoje são inalcançáveis (nenhum paciente consegue autenticar).
+
+---
+
+## ⬜ Fase 3 — Cadastro de paciente
 
 Escopo previsto:
 
-- [ ] Guards `web` (equipe) e `paciente` em `config/auth.php`, providers distintos sobre
-      o mesmo model `User`
-- [ ] Expiração de sessão de 30 min (equipe) e 15 min (paciente) — exige middleware
-      próprio, o Laravel tem um único `session.lifetime` (D-12)
-- [ ] `config/hashing.php` com Argon2id (RNF-07)
-- [ ] Seeder das 8 roles e de todas as permissions, reproduzindo a matriz da doc §2.3
-- [ ] As 6 Policies, registradas
-- [ ] `Gate::before` liberando `admin`, exceto `prontuario.quebra_sigilo`
-- [ ] Middlewares `SenhaProvisoria`, `RegistrarAuditoria`, `ExigirVinculoAssistencial`
-- [ ] `AuditoriaService` com mascaramento de `password`, `token_pulseira`, `cpf` e `cns`
-- [ ] Layout base Inertia com navegação por perfil
-- [ ] Remover cadastro público e tornar `login`/`tipo` `NOT NULL` (D-14)
-- [ ] Teste percorrendo a matriz RBAC — **os testes negativos são os que importam**
-- [ ] Teste provando que o guard `paciente` recebe `false` em qualquer `can()`
+- [ ] `CadastrarPacienteAction` — em uma transação: `User` + `Paciente` + credencial
+      (login = CPF, senha = `DDMMAAAA`, `senha_provisoria = true`) + `token_pulseira` +
+      auditoria (RN-04, RN-05)
+- [ ] Validação de CPF com dígito verificador (regra customizada, não regex)
+- [ ] Cadastro sem CPF: `codigo_provisorio` no formato `NI-2026-0031` (RF-04)
+- [ ] `RegularizarIdentificacaoAction` preservando o histórico (RN-30)
+- [ ] Idade derivada com granularidade adaptativa (D-01) — já implementada em `Paciente`,
+      falta o teste das quatro datas-limite
+- [ ] Alergias e condições crônicas em destaque em toda tela (RF-11)
+- [ ] Busca por nome, CPF, CNS, data de nascimento e token (RF-09)
+- [ ] Páginas `Pacientes/Index`, `Pacientes/Create`, `Pacientes/Show`

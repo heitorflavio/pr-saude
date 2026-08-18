@@ -21,6 +21,12 @@
         <env name="APP_ENV" value="testing"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
+        <!-- RNF-07 usa Argon2id com 64 MiB por hash. Na suite, o minimo aceito pelo
+             PHP (8 KiB / 1 iteracao): o algoritmo continua sendo o mesmo, so o custo
+             cai. Sem isso, cada usuario criado por factory custaria ~50 ms. -->
+        <env name="ARGON_MEMORY" value="8"/>
+        <env name="ARGON_TIME" value="1"/>
+        <env name="ARGON_THREADS" value="1"/>
         <env name="CACHE_STORE" value="array"/>
         <!-- As invariantes criticas do SGH sao garantidas pelo banco, nao pela aplicacao:
              as 18 restricoes CHECK, a coluna gerada ativo_key (RN-07/D-07) e as UNIQUE KEY

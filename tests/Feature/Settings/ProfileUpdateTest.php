@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Support\Facades\Route;
 
 test('profile page is displayed', function () {
     $user = User::factory()->create();
@@ -50,44 +51,23 @@ test('email verification status is unchanged when the email address is unchanged
     expect($user->refresh()->email_verified_at)->not->toBeNull();
 });
 
-test('user can delete their account', function () {
+test('nao existe rota de auto-exclusao de conta', function () {
+    // D-18: num SGH, conta de paciente ou de profissional nao se apaga por
+    // autoatendimento. Um usuario removido deixaria registro clinico orfao de autor, e
+    // a trilha de auditoria precisa continuar podendo dizer quem agiu (D-08).
+    // Desativacao e ato administrativo, sob a permissao usuario.gerenciar.
     $user = User::factory()->create();
 
-    $response = $this
-        ->actingAs($user)
-        ->delete('/settings/profile', [
-            'password' => 'password',
-        ]);
+    // 405, nao 404: a URI continua existindo para GET e PATCH -- o que deixou de
+    // existir e o verbo DELETE. E a prova mais precisa de que a rota foi removida.
+    $this->actingAs($user)
+        ->delete('/settings/profile', ['password' => 'password'])
+        ->assertMethodNotAllowed();
 
-    $response
-        ->assertSessionHasNoErrors()
-        ->assertRedirect('/');
-
-    $this->assertGuest();
-
-    // D-08: nenhuma exclusao fisica. `users` ganhou `deleted_at` (schema.sql, tabela
-    // `usuario`), entao a conta e removida logicamente e a auditoria continua podendo
-    // referenciar quem agiu. A propria existencia desta rota de auto-exclusao sera
-    // reavaliada na Fase 2 -- num SGH, conta de paciente ou profissional nao se apaga
-    // por autoatendimento.
-    $this->assertSoftDeleted('users', ['id' => $user->id]);
-    expect(User::find($user->id))->toBeNull();
     expect(User::withTrashed()->find($user->id))->not->toBeNull();
+    $this->assertNotSoftDeleted('users', ['id' => $user->id]);
 });
 
-test('correct password must be provided to delete account', function () {
-    $user = User::factory()->create();
-
-    $response = $this
-        ->actingAs($user)
-        ->from('/settings/profile')
-        ->delete('/settings/profile', [
-            'password' => 'wrong-password',
-        ]);
-
-    $response
-        ->assertSessionHasErrors('password')
-        ->assertRedirect('/settings/profile');
-
-    expect($user->fresh())->not->toBeNull();
+test('a rota profile.destroy nao esta registrada', function () {
+    expect(Route::has('profile.destroy'))->toBeFalse();
 });

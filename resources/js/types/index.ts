@@ -1,7 +1,11 @@
 import type { LucideIcon } from 'lucide-vue-next';
 
 export interface Auth {
-    user: User;
+    user: User | null;
+    /** Nomes das roles do spatie. Navegacao por perfil, nunca controle de acesso. */
+    roles: string[];
+    /** Permissoes efetivas, no formato recurso.acao. */
+    permissoes: string[];
 }
 
 export interface BreadcrumbItem {
@@ -14,6 +18,11 @@ export interface NavItem {
     href: string;
     icon?: LucideIcon;
     isActive?: boolean;
+    /**
+     * Permissoes que liberam o item. Se ausente, o item e visivel a qualquer usuario
+     * autenticado; se presente, basta UMA delas.
+     */
+    permissoes?: string[];
 }
 
 export interface SharedData {
@@ -29,14 +38,19 @@ export interface SharedData {
     };
 }
 
+export type TipoUsuario = 'PACIENTE' | 'PROFISSIONAL' | 'ADMIN';
+
+/**
+ * Subconjunto compartilhado pelo HandleInertiaRequests -- nao o model inteiro.
+ * `login` fica de fora de proposito: para paciente ele e o CPF (RN-04).
+ */
 export interface User {
     id: number;
     name: string;
-    email: string;
+    email: string | null;
+    tipo: TipoUsuario;
+    senha_provisoria: boolean;
     avatar?: string;
-    email_verified_at: string | null;
-    created_at: string;
-    updated_at: string;
 }
 
 export type BreadcrumbItemType = BreadcrumbItem;

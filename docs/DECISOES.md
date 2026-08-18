@@ -75,8 +75,8 @@ starter kit.
 > `prsaude_test` — `migrate:fresh` jamais pode ser executado com `DB_DATABASE`
 > apontando para outro schema.
 >
-> Pendência remanescente: o CI ainda cria banco **SQLite** (ver a nota ao fim desta
-> decisão).
+> Pendência remanescente **resolvida na Fase 2**: o CI passou a usar service container
+> MySQL (D-21).
 
 O Passo 0 encontrou o projeto em **SQLite**, enquanto `docs/schema.sql` é MySQL 8.4. O
 levantamento de disponibilidade: portas 3306 e 5432 fechadas, `herd services` exige Herd
@@ -94,10 +94,8 @@ Pro (não licenciado), Docker 29.5.2 instalado mas com o daemon parado.
 | `docs/privilegios.sql` (`REVOKE UPDATE, DELETE`) | SQLite não tem `GRANT`/`REVOKE`; exigiria triggers `RAISE(ABORT)` |
 | Teste de concorrência da Fase 5 | SQLite serializa escrita — o teste ficaria artificial |
 
-**Pendência aberta:** o CI em `.github/workflows/tests.yml` cria um banco SQLite. Com o
-MySQL em uso local, o workflow precisa de um *service container* MySQL — caso contrário o
-CI testa um banco que não reproduz as 18 `CHECK` nem a coluna gerada, justamente as
-garantias que a Fase 1 existe para estabelecer. Ver também D-13.
+**Pendência que era aberta (resolvida em D-21):** o CI criava banco SQLite, o que faria
+os testes de esquema rodarem contra um banco sem as 18 `CHECK` nem a coluna gerada.
 
 ---
 
@@ -255,9 +253,8 @@ não é o de produção, que é pior que não testar, porque dá falsa confianç
 
 **Custo aceito.** A suíte passou de ~1,7 s para ~13 s. É o preço de testar o banco real.
 
-**Pendência:** `.github/workflows/tests.yml` ainda faz `Create SQLite Database`. Precisa
-de um *service container* MySQL, senão o CI testa um banco diferente do local — e
-justamente nas garantias que mais importam.
+**Pendência resolvida na Fase 2 (D-21):** `.github/workflows/tests.yml` passou a subir um
+service container `mysql:9`.
 
 ---
 
@@ -327,3 +324,121 @@ uma camada de validação em PHP, ele provaria que o PHP recusa — e a tese da 
 exatamente a oposta: as regras estão gravadas no esquema justamente para sobreviver a
 bug de aplicação, condição de corrida e script de importação. Cada asserção verifica o
 nome da constraint violada, não apenas que "deu erro".
+
+---
+
+## D-18 · Removidos o cadastro público e a auto-exclusão de conta
+
+**Origem:** decisão do usuário no checkpoint da Fase 1 · **Status:** ✅ aplicada ·
+**2026-08-18**
+
+O starter kit expunha `GET/POST /register` (autocadastro) e
+`DELETE /settings/profile` (auto-exclusão de conta). Ambas foram removidas, junto com
+`RegisteredUserController`, `Register.vue`, `DeleteUser.vue` e `ProfileController::destroy`.
+
+**Motivo do cadastro.** Num SGH não existe autocadastro. Usuários são criados pela
+recepção (pacientes, RN-04, com login = CPF e senha provisória) ou pelo administrador
+(equipe, sob `usuario.gerenciar`). A rota aberta permitia a qualquer pessoa na internet
+criar conta autenticada no sistema.
+
+**Motivo da exclusão.** D-08 proíbe exclusão física de dado clínico, e um usuário
+removido deixaria registros clínicos órfãos de autor — `registro_clinico.autor_id` é
+`NOT NULL` e a trilha de auditoria precisa continuar podendo dizer quem agiu.
+Desativação de conta (`users.ativo = false`) é ato administrativo, não autoatendimento.
+
+**Consequência:** fechou a dívida D-14 — `users.login` e `users.tipo` passaram a
+`NOT NULL` na migration `2026_08_18_210000`.
+
+---
+
+## D-19 · `prontuario.criar` dividida em duas permissões
+
+**Origem:** a matriz da doc §2.3 é mais granular que a lista do prompt §5 ·
+**Status:** ✅ aplicada · **2026-08-18**
+
+O prompt §5 lista `prontuario.criar` entre as permissões nomeadas. A matriz da doc §2.3,
+porém, separa **"Prontuário — nota médica"** de **"Prontuário — evolução de enfermagem"**
+com acessos diferentes: o técnico de enfermagem escreve evolução, mas não nota médica.
+Uma permissão única não expressa isso.
+
+**Decisão.** Seguir a convenção `recurso.acao` do prompt, mas com duas permissões:
+`prontuario.criar_nota_medica` e `prontuario.criar_evolucao_enfermagem`. As outras 12
+permissões nomeadas no prompt entraram com o nome exato.
+
+Não é contradição com o prompt: ele manda "semear a matriz completa da doc §2.3", e a
+matriz completa exige a separação.
+
+---
+
+## D-20 · `Gate::before` dá ao admin mais poder que a matriz da doc §2.3 — e isso merece revisão
+
+**Origem:** prescrito pelo prompt §5 · **Status:** ⚠️ implementado conforme pedido, com
+ressalva · **2026-08-18**
+
+O prompt §5 manda: "`Gate::before` libera o `admin` — mas **não** para
+`prontuario.quebra_sigilo`". Implementado exatamente assim.
+
+**A tensão.** A matriz da doc §2.3 dá ao administrador apenas **R** (leitura) nas linhas
+clínicas — prontuário, prescrição, administração de medicamento. A intenção do documento
+é clara: administrador configura o sistema, não pratica medicina. O `Gate::before`,
+porém, concede escrita clínica a ele.
+
+Como o prompt vence o documento em caso de conflito (§1), o atalho está implementado. A
+matriz semeada continua fiel à doc §2.3 — o `admin` **não** recebe
+`prontuario.criar_nota_medica` como permissão; ele passa pelo atalho do Gate.
+
+**Recomendação para revisão:** restringir o `Gate::before` a permissões administrativas
+(`usuario.gerenciar`, `catalogo_*`, `auditoria.ler`) em vez de liberar tudo. Um
+administrador de TI capaz de escrever evolução médica em nome próprio é um risco de
+integridade do prontuário que nenhuma auditoria posterior desfaz.
+
+---
+
+## D-21 · CI passa a rodar com service container MySQL
+
+**Origem:** decisão do usuário no checkpoint da Fase 1 · **Status:** ✅ aplicada ·
+**2026-08-18**
+
+`.github/workflows/tests.yml` criava um banco SQLite. Substituído por um service
+container `mysql:9` com healthcheck, `prsaude_test` como schema e as variáveis `DB_*` no
+nível do job. `.env.example` também passou a apontar para MySQL.
+
+**Motivo.** Fecha a divergência aberta em D-04/D-13: sem isso, o CI executaria os testes
+de esquema contra um banco que não reproduz as 18 `CHECK`, a coluna gerada `ativo_key`
+nem os `UNIQUE` da RN-20 — os testes falhariam por dialeto ou, pior, passariam por
+vacuidade.
+
+---
+
+## D-22 · O Inertia compartilha um subconjunto do usuário, não o model
+
+**Origem:** decisão de segurança tomada na Fase 2 · **Status:** ✅ aplicada ·
+**2026-08-18**
+
+`HandleInertiaRequests::share()` vinha do starter kit com `'user' => $request->user()`,
+que serializa o model inteiro.
+
+**Decisão.** Compartilhar apenas `id`, `name`, `email`, `tipo` e `senha_provisoria`,
+mais `roles` e `permissoes` para a navegação por perfil.
+
+**Motivo.** `users.login` é o **CPF** quando o usuário é paciente (RN-04). Serializar o
+model completo colocaria CPF em texto claro no HTML inicial de toda página e em cada
+resposta do Inertia — exatamente o vazamento silencioso que a doc §14.2 pede para evitar.
+
+---
+
+## D-23 · A equipe continua autenticando por e-mail, não por matrícula
+
+**Origem:** escopo · **Status:** ⚠️ dívida registrada · **2026-08-18**
+
+O `schema.sql` define `usuario.login` como "CPF do paciente, matrícula do profissional ou
+código provisório". A tela de login da equipe, herdada do starter kit, continua usando
+**e-mail + senha**.
+
+**Motivo de não mudar agora.** A Fase 2 entrega a infraestrutura de autorização; o
+cadastro de profissionais (que atribui matrícula) ainda não existe. Trocar o campo de
+login antes de existir quem preencha matrícula deixaria o sistema sem forma de entrar.
+
+**A resolver:** quando a gestão de usuários da equipe for construída, migrar o login para
+`users.login`. O portal do paciente (Fase 11) já nasce usando `login` = CPF, conforme
+RN-04 — não há dívida do lado do paciente.

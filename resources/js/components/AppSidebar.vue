@@ -1,33 +1,38 @@
 <script setup lang="ts">
-import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
+import { usePermissoes } from '@/composables/usePermissoes';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid } from 'lucide-vue-next';
+import { ClipboardList, FlaskConical, LayoutGrid, ListOrdered, Pill, ScrollText, ShieldCheck, Stethoscope, Users } from 'lucide-vue-next';
+import { computed } from 'vue';
 import AppLogo from './AppLogo.vue';
 
-const mainNavItems: NavItem[] = [
-    {
-        title: 'Dashboard',
-        href: '/dashboard',
-        icon: LayoutGrid,
-    },
+const { podeAlguma } = usePermissoes();
+
+/**
+ * Navegação por perfil: cada usuário vê só o que pode acessar.
+ *
+ * Esconder o item é conveniência, não segurança — a autorização real está nas Policies
+ * do servidor. Um menu limpo evita que a recepcionista passe o turno clicando em telas
+ * que vão devolver 403.
+ *
+ * As rotas ainda não existem: cada fase seguinte acende o seu item.
+ */
+const itensNavegacao: NavItem[] = [
+    { title: 'Painel', href: '/dashboard', icon: LayoutGrid },
+    { title: 'Pacientes', href: '/pacientes', icon: Users, permissoes: ['paciente.ler'] },
+    { title: 'Triagem', href: '/triagem', icon: Stethoscope, permissoes: ['triagem.classificar', 'triagem.ler'] },
+    { title: 'Fila', href: '/fila', icon: ListOrdered, permissoes: ['fila.ler'] },
+    { title: 'Prontuário', href: '/prontuario', icon: ScrollText, permissoes: ['prontuario.ler_nota_medica', 'prontuario.ler_evolucao_enfermagem'] },
+    { title: 'Medicamentos', href: '/medicamentos', icon: Pill, permissoes: ['prescricao.ler', 'medicamento.administrar'] },
+    { title: 'Exames', href: '/exames', icon: FlaskConical, permissoes: ['exame.ler_solicitacao', 'exame.executar'] },
+    { title: 'Auditoria', href: '/auditoria', icon: ShieldCheck, permissoes: ['auditoria.ler'] },
+    { title: 'Usuários', href: '/usuarios', icon: ClipboardList, permissoes: ['usuario.gerenciar'] },
 ];
 
-const footerNavItems: NavItem[] = [
-    {
-        title: 'Github Repo',
-        href: 'https://github.com/laravel/vue-starter-kit',
-        icon: Folder,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits',
-        icon: BookOpen,
-    },
-];
+const itensVisiveis = computed(() => itensNavegacao.filter((item) => !item.permissoes || podeAlguma(item.permissoes)));
 </script>
 
 <template>
@@ -45,11 +50,10 @@ const footerNavItems: NavItem[] = [
         </SidebarHeader>
 
         <SidebarContent>
-            <NavMain :items="mainNavItems" />
+            <NavMain :items="itensVisiveis" />
         </SidebarContent>
 
         <SidebarFooter>
-            <NavFooter :items="footerNavItems" />
             <NavUser />
         </SidebarFooter>
     </Sidebar>

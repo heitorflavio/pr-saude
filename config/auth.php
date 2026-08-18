@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\User;
+
 return [
 
     /*
@@ -15,7 +17,7 @@ return [
 
     'defaults' => [
         'guard' => env('AUTH_GUARD', 'web'),
-        'passwords' => env('AUTH_PASSWORD_BROKER', 'users'),
+        'passwords' => env('AUTH_PASSWORD_BROKER', 'profissionais'),
     ],
 
     /*
@@ -35,10 +37,29 @@ return [
     |
     */
 
+    /*
+    | doc 13.4: dois guards, nao um guard com verificacao de papel.
+    |
+    | Guards separados dao ISOLAMENTO DE SESSAO: o cookie de sessao do paciente nao e o
+    | mesmo do profissional. Um medico logado no mesmo navegador em que um paciente
+    | acessou o portal nao corre risco de confusao de contexto -- e nenhuma rota de
+    | escrita da equipe e alcancavel a partir de uma sessao de paciente, mesmo que uma
+    | Policy falhe.
+    |
+    | RN-27: o guard `paciente` fica sem nenhuma role e sem nenhuma permission, de
+    | proposito. Qualquer can() avaliado nele nega por construcao.
+    */
     'guards' => [
+        // Equipe assistencial e administrativa. Sessao de 30 min (RNF-10).
         'web' => [
             'driver' => 'session',
-            'provider' => 'users',
+            'provider' => 'profissionais',
+        ],
+
+        // Portal do paciente, somente leitura. Sessao de 15 min (RNF-09).
+        'paciente' => [
+            'driver' => 'session',
+            'provider' => 'pacientes',
         ],
     ],
 
@@ -59,16 +80,25 @@ return [
     |
     */
 
+    /*
+    | Os dois providers apontam para o MESMO model: D-02, heranca por tabela de classe.
+    | Uma pessoa tem um unico usuario mesmo quando e profissional e paciente ao mesmo
+    | tempo -- e a auditoria mostra corretamente "Ana acessou o prontuario de Ana".
+    |
+    | A separacao por `tipo` e feita nas credenciais do attempt(), nao aqui: cada
+    | controller de login inclui `tipo` no array de credenciais, e o EloquentUserProvider
+    | transforma isso em WHERE. Ver AutenticacaoPacienteTest.
+    */
     'providers' => [
-        'users' => [
+        'profissionais' => [
             'driver' => 'eloquent',
-            'model' => env('AUTH_MODEL', App\Models\User::class),
+            'model' => env('AUTH_MODEL', User::class),
         ],
 
-        // 'users' => [
-        //     'driver' => 'database',
-        //     'table' => 'users',
-        // ],
+        'pacientes' => [
+            'driver' => 'eloquent',
+            'model' => env('AUTH_MODEL', User::class),
+        ],
     ],
 
     /*
@@ -91,10 +121,18 @@ return [
     */
 
     'passwords' => [
-        'users' => [
-            'provider' => 'users',
+        'profissionais' => [
+            'provider' => 'profissionais',
             'table' => env('AUTH_PASSWORD_RESET_TOKEN_TABLE', 'password_reset_tokens'),
             'expire' => 60,
+            'throttle' => 60,
+        ],
+
+        // Janela mais curta para o paciente: doc 13.4.
+        'pacientes' => [
+            'provider' => 'pacientes',
+            'table' => env('AUTH_PASSWORD_RESET_TOKEN_TABLE', 'password_reset_tokens'),
+            'expire' => 30,
             'throttle' => 60,
         ],
     ],

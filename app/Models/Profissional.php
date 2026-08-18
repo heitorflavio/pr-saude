@@ -72,6 +72,22 @@ class Profissional extends Model
     }
 
     /**
+     * doc 13.5: em plantao = tem disponibilidade vigente e nao esta ausente nem fora do
+     * plantao. `PAUSA` conta como plantao -- quem esta no intervalo continua sendo o
+     * profissional daquele paciente, e uma parada cardiaca nao espera o cafe acabar.
+     */
+    public function emPlantao(): bool
+    {
+        $vigente = $this->relationLoaded('disponibilidadeVigente')
+            ? $this->disponibilidadeVigente
+            : $this->disponibilidadeVigente()->first();
+
+        return $this->ativo
+            && $vigente !== null
+            && in_array($vigente->situacao, ['DISPONIVEL', 'EM_ATENDIMENTO', 'PAUSA'], strict: true);
+    }
+
+    /**
      * Snapshot gravado em `registro_clinico.autor_conselho`: se o cadastro mudar
      * depois, o registro continua dizendo quem assinou naquele momento.
      */
