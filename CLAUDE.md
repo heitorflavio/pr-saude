@@ -23,7 +23,8 @@ identificador em comentário no código**.
 |---|---|
 | Laravel | 12.67.0 |
 | PHP | **8.4.22** (site isolado via `herd isolate 8.4`; `composer.json` exige `^8.4`) |
-| Banco | **MySQL 8.4** — ver `docs/DECISOES.md` D-04 |
+| Banco | **MySQL Community 9.6.0** em `127.0.0.1:3306`, schemas `prsaude` e `prsaude_test` (`utf8mb4_0900_ai_ci`). ⚠️ O servidor hospeda outros bancos do usuário — nunca rodar `migrate:fresh` fora desses dois schemas. Ver `docs/DECISOES.md` D-04 |
+| RBAC | `spatie/laravel-permission` **8.3.0** |
 | Inertia | `inertiajs/inertia-laravel` 2.0.25 + `@inertiajs/vue3` 2.0.3 |
 | Vue / TS / Vite | 3.5.13 / 5.7.3 / 6.1.1 |
 | Tailwind | 3.4.17 (**v3**, não v4) — config em `tailwind.config.js` |

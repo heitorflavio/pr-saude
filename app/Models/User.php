@@ -2,30 +2,46 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
 
+/**
+ * D-02 / DECISOES.md D-01: identidade unica da pessoa. `paciente` e `profissional` sao
+ * especializacoes com FK-PK compartilhada -- quando a enfermeira Ana e atendida na
+ * propria unidade, ela tem UM usuario e dois papeis, e a auditoria mostra corretamente
+ * "Ana acessou o prontuario de Ana".
+ *
+ * ATENCAO: nunca criar aqui propriedade, relacao ou metodo chamado `role`, `roles`,
+ * `permission` ou `permissions` -- conflita com o trait HasRoles do spatie.
+ */
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    /** @use HasFactory<UserFactory> */
+    use HasFactory, HasRoles, Notifiable, SoftDeletes;
 
     /**
-     * The attributes that are mass assignable.
-     *
      * @var list<string>
      */
     protected $fillable = [
         'name',
         'email',
         'password',
+        'login',
+        'tipo',
+        'senha_provisoria',
+        'senha_alterada_em',
+        'ativo',
+        'ultimo_login_em',
+        'tentativas_falhas',
+        'bloqueado_ate',
     ];
 
     /**
-     * The attributes that should be hidden for serialization.
-     *
      * @var list<string>
      */
     protected $hidden = [
@@ -34,8 +50,6 @@ class User extends Authenticatable
     ];
 
     /**
-     * Get the attributes that should be cast.
-     *
      * @return array<string, string>
      */
     protected function casts(): array
@@ -43,6 +57,28 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'senha_provisoria' => 'boolean',
+            'senha_alterada_em' => 'datetime',
+            'ativo' => 'boolean',
+            'ultimo_login_em' => 'datetime',
+            'tentativas_falhas' => 'integer',
+            'bloqueado_ate' => 'datetime',
         ];
+    }
+
+    public function paciente(): HasOne
+    {
+        return $this->hasOne(Paciente::class, 'user_id');
+    }
+
+    public function profissional(): HasOne
+    {
+        return $this->hasOne(Profissional::class, 'user_id');
+    }
+
+    /** RNF-08: conta bloqueada por tentativas falhas sucessivas. */
+    public function estaBloqueado(): bool
+    {
+        return $this->bloqueado_ate !== null && $this->bloqueado_ate->isFuture();
     }
 }

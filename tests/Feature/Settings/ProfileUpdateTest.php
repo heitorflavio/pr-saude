@@ -64,7 +64,15 @@ test('user can delete their account', function () {
         ->assertRedirect('/');
 
     $this->assertGuest();
-    expect($user->fresh())->toBeNull();
+
+    // D-08: nenhuma exclusao fisica. `users` ganhou `deleted_at` (schema.sql, tabela
+    // `usuario`), entao a conta e removida logicamente e a auditoria continua podendo
+    // referenciar quem agiu. A propria existencia desta rota de auto-exclusao sera
+    // reavaliada na Fase 2 -- num SGH, conta de paciente ou profissional nao se apaga
+    // por autoatendimento.
+    $this->assertSoftDeleted('users', ['id' => $user->id]);
+    expect(User::find($user->id))->toBeNull();
+    expect(User::withTrashed()->find($user->id))->not->toBeNull();
 });
 
 test('correct password must be provided to delete account', function () {
