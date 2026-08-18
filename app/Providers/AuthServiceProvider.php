@@ -39,7 +39,43 @@ final class AuthServiceProvider extends ServiceProvider
     ];
 
     /**
-     * Abilities que o `admin` NÃO recebe pelo atalho do Gate::before.
+     * Abilities ADMINISTRATIVAS: as únicas para as quais o `admin` tem atalho.
+     *
+     * O prompt §5 pedia um `Gate::before` que liberasse o admin para tudo, exceto quebra
+     * de sigilo. Isso contrariava a matriz da doc §2.3, que dá ao administrador apenas
+     * **R** nas linhas clínicas -- prontuário, prescrição, administração de medicamento.
+     * A intenção do documento é clara: administrador configura o sistema, não pratica
+     * medicina. Um admin de TI capaz de assinar evolução médica em nome próprio é um
+     * risco de integridade do prontuário que nenhuma auditoria posterior desfaz.
+     *
+     * O atalho ficou restrito ao domínio administrativo (DECISOES.md D-20). Tudo o mais
+     * cai na verificação normal -- e lá o admin tem exatamente o que a matriz semeou,
+     * nem mais nem menos.
+     *
+     * @var array<int, string>
+     */
+    private const PREFIXOS_ADMINISTRATIVOS = [
+        'usuario.',
+        'catalogo_',
+        'auditoria.',
+        'paciente.',
+    ];
+
+    /**
+     * Abilities de Policy liberadas ao admin.
+     *
+     * `verContexto` está aqui porque a doc §13.5 é explícita: o administrador não tem
+     * vínculo assistencial com ninguém, e sem isto não conseguiria abrir a ficha
+     * cadastral de nenhum paciente -- que é trabalho administrativo legítimo.
+     *
+     * @var array<int, string>
+     */
+    private const POLICIES_ADMINISTRATIVAS = [
+        'verContexto',
+    ];
+
+    /**
+     * Nunca liberadas pelo atalho, em nenhuma hipótese.
      *
      * Cobre os dois nomes pelos quais a quebra de sigilo é consultada: a permission do
      * spatie (`prontuario.quebra_sigilo`) e o método da Policy (`quebrarSigilo`) --
@@ -59,23 +95,38 @@ final class AuthServiceProvider extends ServiceProvider
         }
 
         /*
-         * O admin passa por cima de tudo -- menos da quebra de sigilo.
+         * O atalho do admin, restrito ao domínio administrativo.
          *
-         * A exceção é o ponto inteiro do controle: RN-28 exige justificativa registrada
-         * para acesso a paciente sem vínculo assistencial. Se o administrador tivesse
-         * atalho aqui, bastaria uma conta de admin para tornar o controle decorativo,
-         * e "quem acessou os dados deste paciente?" passaria a ter resposta incompleta
-         * exatamente para o perfil com mais alcance.
+         * `prontuario.quebra_sigilo` fica de fora mesmo dentro do prefixo administrativo:
+         * é o ponto inteiro do controle da RN-28. Se o administrador tivesse atalho ali,
+         * bastaria uma conta de admin para tornar o controle decorativo, e "quem acessou
+         * os dados deste paciente?" teria resposta incompleta exatamente para o perfil
+         * com mais alcance.
          *
-         * Retornar `null` (e não `false`) deixa a checagem seguir para a Policy: quem
-         * não é admin, e o próprio admin no caso excluído, são avaliados normalmente.
+         * Retornar `null` (e não `false`) deixa a checagem seguir seu curso normal: quem
+         * não é admin, e o admin fora do domínio administrativo, são avaliados pela
+         * permission semeada e pela Policy -- como qualquer outro.
          */
         Gate::before(function (User $user, string $ability) {
+            if (! $user->ehAdmin()) {
+                return null;
+            }
+
             if (in_array($ability, self::SEM_ATALHO_PARA_ADMIN, strict: true)) {
                 return null;
             }
 
-            return $user->ehAdmin() ? true : null;
+            if (in_array($ability, self::POLICIES_ADMINISTRATIVAS, strict: true)) {
+                return true;
+            }
+
+            foreach (self::PREFIXOS_ADMINISTRATIVOS as $prefixo) {
+                if (str_starts_with($ability, $prefixo)) {
+                    return true;
+                }
+            }
+
+            return null;
         });
     }
 }

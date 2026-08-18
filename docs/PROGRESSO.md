@@ -190,8 +190,9 @@ verificações de invariante:
   (`verContexto`, `verMinimoVital`, `quebrarSigilo`, `imprimirPulseira`),
   `AtendimentoPolicy` (RN-12 + a nota ¹ do laboratório), `RegistroClinicoPolicy`,
   `PrescricaoPolicy`, `AdministracaoPolicy` (RN-22), `ExameResultadoPolicy` (RN-24/RN-25).
-- `Gate::before` libera o `admin` — **exceto** `prontuario.quebra_sigilo`, coberta pelos
-  dois nomes por que é consultada (permission e método da Policy). Ver a ressalva em D-20.
+- `Gate::before` restrito ao domínio administrativo (`usuario.`, `catalogo_`,
+  `auditoria.`, `paciente.` e `verContexto`), com `prontuario.quebra_sigilo` fora dele
+  mesmo assim. O admin tem leitura clínica, nenhuma escrita — fiel à matriz (D-20).
 
 **Middlewares**
 
@@ -249,17 +250,16 @@ verificações de invariante:
 |---|---|
 | Removidos cadastro público e auto-exclusão de conta | D-18 |
 | `prontuario.criar` dividida em nota médica / evolução de enfermagem | D-19 |
-| `Gate::before` dá ao admin mais poder que a matriz — **ressalva registrada** | D-20 |
+| `Gate::before` restrito ao domínio administrativo (correção aprovada) | D-20 |
 | CI com service container MySQL | D-21 |
 | Inertia compartilha subconjunto do usuário, não o model | D-22 |
 | Equipe segue autenticando por e-mail, não por matrícula | D-23 |
 
 ### Pendências que a Fase 2 deixa em aberto
 
-1. **`Gate::before` permite ao admin escrever no prontuário** (D-20). Implementado como o
-   prompt §5 pede, mas contraria a intenção da matriz da doc §2.3, que dá ao admin apenas
-   leitura nas linhas clínicas. **Recomendo restringir o atalho a permissões
-   administrativas — requer sua decisão.**
+1. ~~`Gate::before` permite ao admin escrever no prontuário~~ — **resolvido**: o atalho
+   ficou restrito ao domínio administrativo (D-20), e o admin é negado em 14 escritas
+   clínicas por teste.
 2. **Login da equipe ainda é por e-mail** (D-23), não por `users.login`. Resolver quando
    existir a gestão de usuários da equipe.
 3. **A suíte leva ~90 s**, dominada pelo `RbacSeeder` rodando a cada teste (42 permissions

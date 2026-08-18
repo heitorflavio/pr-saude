@@ -168,12 +168,71 @@ it('devolve false em qualquer can() para usuario autenticado no guard paciente',
 // Gate::before -- o admin e a unica excecao dele
 // =====================================================================
 
-it('libera o admin para qualquer permissao pelo Gate::before', function () {
+it('libera o admin apenas no dominio administrativo', function () {
+    // D-20: o atalho vale para gestao de usuarios, catalogos, auditoria e cadastro de
+    // paciente -- nao para pratica clinica.
     $admin = User::factory()->admin()->create();
 
-    foreach (array_diff($this->todasPermissoes, ['prontuario.quebra_sigilo']) as $permissao) {
+    $administrativas = [
+        'usuario.gerenciar',
+        'auditoria.ler',
+        'paciente.criar', 'paciente.atualizar', 'paciente.excluir', 'paciente.resetar_senha',
+        'catalogo_medicamento.criar', 'catalogo_medicamento.excluir',
+        'catalogo_exame.criar', 'catalogo_exame.excluir',
+    ];
+
+    foreach ($administrativas as $permissao) {
         expect($admin->can($permissao))->toBeTrue("Admin deveria poder {$permissao}.");
     }
+});
+
+it('nega ao admin toda escrita clinica', function () {
+    // A intencao da matriz da doc 2.3: o administrador tem apenas R nas linhas
+    // clinicas. Um admin de TI capaz de assinar evolucao medica em nome proprio e um
+    // risco de integridade do prontuario que nenhuma auditoria posterior desfaz.
+    $admin = User::factory()->admin()->create();
+
+    $escritasClinicas = [
+        'prontuario.criar_nota_medica',
+        'prontuario.criar_evolucao_enfermagem',
+        'prontuario.retificar',
+        'prontuario.quebra_sigilo',
+        'prescricao.criar',
+        'prescricao.atualizar',
+        'medicamento.administrar',
+        'triagem.classificar',
+        'triagem.reclassificar',
+        'atendimento.alterar_status',
+        'exame.solicitar',
+        'exame.executar',
+        'exame.atualizar_resultado',
+        'exame.liberar_resultado',
+    ];
+
+    foreach ($escritasClinicas as $permissao) {
+        expect($admin->can($permissao))->toBeFalse("Admin NAO deveria poder {$permissao}.");
+    }
+});
+
+it('mantem a leitura clinica do admin, como a matriz preve', function () {
+    // Ler ele pode: a doc 2.3 da R ao admin nas linhas clinicas. E o que sustenta a
+    // supervisao e a resposta a requisicao de titular.
+    $admin = usuarioCom('admin');
+
+    expect($admin->hasPermissionTo('prontuario.ler_nota_medica', 'web'))->toBeTrue()
+        ->and($admin->hasPermissionTo('prescricao.ler', 'web'))->toBeTrue()
+        ->and($admin->hasPermissionTo('medicamento.ler_administracao', 'web'))->toBeTrue()
+        ->and($admin->hasPermissionTo('exame.ler_resultado', 'web'))->toBeTrue()
+        ->and($admin->hasPermissionTo('atendimento.ler_status', 'web'))->toBeTrue();
+});
+
+it('libera verContexto ao admin, que nao tem vinculo assistencial com ninguem', function () {
+    // doc 13.5: sem isto o administrador nao abriria a ficha cadastral de paciente
+    // nenhum -- e isso e trabalho administrativo legitimo.
+    $admin = User::factory()->admin()->create();
+    $paciente = Paciente::factory()->create();
+
+    expect(Illuminate\Support\Facades\Gate::forUser($admin)->allows('verContexto', $paciente))->toBeTrue();
 });
 
 it('nao libera o admin para quebra de sigilo, nem pela permission nem pela policy', function () {

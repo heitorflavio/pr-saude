@@ -370,27 +370,44 @@ matriz completa exige a separação.
 
 ---
 
-## D-20 · `Gate::before` dá ao admin mais poder que a matriz da doc §2.3 — e isso merece revisão
+## D-20 · `Gate::before` restrito ao domínio administrativo
 
-**Origem:** prescrito pelo prompt §5 · **Status:** ⚠️ implementado conforme pedido, com
-ressalva · **2026-08-18**
+**Origem:** prescrito pelo prompt §5, **corrigido por decisão do usuário** ·
+**Status:** ✅ aplicada · **2026-08-18**
 
 O prompt §5 manda: "`Gate::before` libera o `admin` — mas **não** para
-`prontuario.quebra_sigilo`". Implementado exatamente assim.
+`prontuario.quebra_sigilo`". Implementado assim primeiro.
 
-**A tensão.** A matriz da doc §2.3 dá ao administrador apenas **R** (leitura) nas linhas
-clínicas — prontuário, prescrição, administração de medicamento. A intenção do documento
-é clara: administrador configura o sistema, não pratica medicina. O `Gate::before`,
-porém, concede escrita clínica a ele.
+**A tensão detectada.** A matriz da doc §2.3 dá ao administrador apenas **R** (leitura)
+nas linhas clínicas — prontuário, prescrição, administração de medicamento. A intenção do
+documento é clara: administrador configura o sistema, não pratica medicina. O
+`Gate::before` irrestrito concedia escrita clínica a ele.
 
-Como o prompt vence o documento em caso de conflito (§1), o atalho está implementado. A
-matriz semeada continua fiel à doc §2.3 — o `admin` **não** recebe
-`prontuario.criar_nota_medica` como permissão; ele passa pelo atalho do Gate.
+**Decisão do usuário: restringir o atalho.** Ele agora vale apenas para:
 
-**Recomendação para revisão:** restringir o `Gate::before` a permissões administrativas
-(`usuario.gerenciar`, `catalogo_*`, `auditoria.ler`) em vez de liberar tudo. Um
-administrador de TI capaz de escrever evolução médica em nome próprio é um risco de
-integridade do prontuário que nenhuma auditoria posterior desfaz.
+| Domínio | Cobertura |
+|---|---|
+| Gestão de usuários | prefixo `usuario.` |
+| Catálogos | prefixo `catalogo_` |
+| Auditoria | prefixo `auditoria.` |
+| Cadastro de paciente | prefixo `paciente.` |
+| Ficha cadastral | ability de Policy `verContexto` (doc §13.5: o admin não tem vínculo assistencial com ninguém) |
+
+`prontuario.quebra_sigilo` e `quebrarSigilo` continuam **fora do atalho mesmo dentro do
+domínio administrativo** — é o ponto inteiro do controle da RN-28.
+
+Todo o resto cai na verificação normal, e lá o admin tem exatamente o que a matriz
+semeou: **leitura** nas linhas clínicas, **nenhuma escrita**.
+
+**Motivo.** Um administrador de TI capaz de assinar evolução médica em nome próprio é um
+risco de integridade do prontuário que nenhuma auditoria posterior desfaz. O prompt vence
+o documento em caso de conflito, mas aqui o conflito era com uma regra de segurança
+assistencial, e o usuário optou por seguir o documento.
+
+**Provado por teste:** `AutorizacaoTest` verifica que o admin é negado em 14 escritas
+clínicas (`prontuario.criar_*`, `prescricao.criar`, `medicamento.administrar`,
+`triagem.classificar`, `atendimento.alterar_status`, `exame.executar`,
+`exame.liberar_resultado`, entre outras) e mantém a leitura que a matriz prevê.
 
 ---
 
