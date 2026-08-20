@@ -17,6 +17,7 @@ use App\Models\ExameSolicitacao;
 use App\Models\Paciente;
 use App\Models\Profissional;
 use App\Models\Unidade;
+use App\Models\User;
 use App\Services\Exame\AvaliadorResultadoService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
@@ -79,6 +80,39 @@ it('cumpre o ciclo SOLICITADO até LIBERADO sem pular estados', function () {
     expect($solicitacao->fresh()->situacao)->toBe(SituacaoExame::Liberado)
         ->and($resultado->fresh()->visivel_ao_paciente)->toBeTrue();
 });
+
+it('permite que o superadmin solicite exame sem habilitação médica', function () {
+    $admin = User::factory()->admin()->create();
+    Profissional::factory()->admin()->create([
+        'user_id' => $admin->id,
+        'unidade_id' => $this->unidade->id,
+        'ativo' => false,
+    ]);
+
+    $solicitacao = app(SolicitarExameAction::class)->execute(
+        $this->atendimento,
+        $this->exame,
+        $admin->fresh(),
+        'ROTINA',
+        'Solicitação administrativa.',
+    );
+
+    expect($solicitacao->solicitado_por)->toBe($admin->id)
+        ->and($solicitacao->solicitante->categoria)->toBe('ADMIN');
+});
+
+it('continua exigindo habilitação médica de quem não é superadmin', function () {
+    $profissional = Profissional::factory()->admin()->create([
+        'unidade_id' => $this->unidade->id,
+    ]);
+
+    app(SolicitarExameAction::class)->execute(
+        $this->atendimento,
+        $this->exame,
+        $profissional->user->fresh(),
+        'ROTINA',
+    );
+})->throws(ExameInvalidoException::class, 'Solicitação de exame exige médico ativo com conselho válido.');
 
 it('recusa pular da solicitação diretamente para execução', function () {
     $solicitacao = app(SolicitarExameAction::class)->execute(

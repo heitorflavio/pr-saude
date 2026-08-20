@@ -386,10 +386,14 @@ A matriz da doc §2.3 permanece sem alterações: ela continua descrevendo as pe
 configuráveis das oito roles. O superacesso é uma propriedade do tipo da conta, não uma
 duplicação de todas as associações em `role_has_permissions`.
 
-**Limite.** O atalho remove barreiras de autorização, mas não as invariantes clínicas,
-campos obrigatórios, máquinas de estado ou constraints do banco. Funcionalidades que
-registram autoria profissional ainda exigem um registro em `profissional` para produzir
-um ato válido e rastreável.
+**Limite.** O atalho remove barreiras de autorização, mas não campos obrigatórios,
+máquinas de estado ou constraints do banco. Funcionalidades que registram autoria
+profissional ainda exigem um registro em `profissional` para produzir um ato rastreável.
+Na solicitação de exame, o tipo `ADMIN` pode usar esse registro mesmo que sua categoria
+não seja `MEDICO` e não possua conselho: exigir habilitação médica depois de o
+superacesso oferecer a funcionalidade tornava o acesso global apenas aparente. As travas
+estruturais (atendimento encerrado, exame inativo e integridade referencial) continuam
+valendo.
 
 **Provado por teste:** `AutorizacaoTest` percorre todas as permissions semeadas e também
 abilities contextuais das Policies, incluindo quebra de sigilo. O teste usa uma conta

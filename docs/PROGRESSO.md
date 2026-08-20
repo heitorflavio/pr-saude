@@ -990,13 +990,14 @@ Suíte completa: **338 testes, 1949 asserções**; ESLint e build verdes.
 - A matriz das roles continua fiel à doc §2.3; possuir apenas a role `admin` em uma conta
   profissional não concede superacesso.
 - A navegação já espelhava essa regra pelo campo `tipo`, portanto não exigiu alteração.
-- Invariantes clínicas, autoria profissional, máquinas de estado e constraints do banco
-  permanecem obrigatórias.
+- Na solicitação de exame, o superadmin com autoria profissional rastreável não é
+  bloqueado por categoria, conselho ou situação desse vínculo. Máquinas de estado,
+  campos obrigatórios e constraints do banco permanecem obrigatórios.
 
 ### Testes
 
-`AutorizacaoTest` percorre as 42 permissions e abilities contextuais para o tipo ADMIN.
-Suíte completa: **337 testes, 1972 asserções**; Pint verde.
+`AutorizacaoTest` percorre as 42 permissions e abilities contextuais para o tipo ADMIN;
+`ExameTest` prova a solicitação pelo superadmin sem habilitação médica.
 
 ---
 

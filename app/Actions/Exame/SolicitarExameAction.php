@@ -29,7 +29,11 @@ final class SolicitarExameAction
         if ($medico === null) {
             throw OperadorSemRegistroProfissionalException::paraAcao('solicitar exame');
         }
-        if (! $medico->ativo || $medico->categoria !== 'MEDICO' || blank($medico->conselho_numero)) {
+        // D-20: o tipo ADMIN tem superacesso. A FK ainda exige um profissional para
+        // manter a autoria rastreável, mas a categoria/conselho não podem transformar
+        // o superacesso em uma permissão que aparece na interface e falha ao executar.
+        if (! $autor->ehAdmin()
+            && (! $medico->ativo || $medico->categoria !== 'MEDICO' || blank($medico->conselho_numero))) {
             throw new ExameInvalidoException('Solicitação de exame exige médico ativo com conselho válido.');
         }
         if (! $exame->ativo) {
