@@ -178,13 +178,17 @@ const suspender = (id: number) => suspensao.post(route('prescricoes.suspender', 
                                 </ul>
                             </li>
                         </ul>
-                        <form v-if="p.status === 'VIGENTE' && permissoes.prescrever" class="mt-3 flex gap-2" @submit.prevent="suspender(p.id)">
+                        <form
+                            v-if="p.status === 'VIGENTE' && permissoes.prescrever"
+                            class="mt-3 flex flex-col gap-2 sm:flex-row"
+                            @submit.prevent="suspender(p.id)"
+                        >
                             <input
                                 v-model="suspensao.motivo"
                                 placeholder="Motivo da suspensão"
-                                class="h-9 flex-1 rounded-md border bg-transparent px-2 text-sm"
+                                class="h-11 w-full min-w-0 flex-1 rounded-md border bg-transparent px-2 text-base sm:h-9 sm:text-sm"
                                 required
-                            /><Button type="submit" variant="destructive" size="sm">Suspender</Button>
+                            /><Button type="submit" variant="destructive" size="sm" class="w-full sm:w-auto">Suspender</Button>
                         </form>
                     </article>
                 </div>

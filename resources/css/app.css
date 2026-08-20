@@ -81,6 +81,24 @@ html {
     }
 }
 
+/* Evita zoom automático no iOS e mantém controles confortáveis para toque. */
+@media (max-width: 767px) {
+    button,
+    [role='button'] {
+        min-height: 44px;
+    }
+
+    input:not([type='checkbox']):not([type='radio']):not([type='file']),
+    select {
+        min-height: 44px;
+        font-size: 16px;
+    }
+
+    textarea {
+        font-size: 16px;
+    }
+}
+
 @layer base {
     * {
         @apply border-border;

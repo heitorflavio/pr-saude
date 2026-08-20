@@ -143,9 +143,9 @@ const rotuloNatureza: Record<string, string> = {
                         <template v-if="atendimento.unidade"> · {{ atendimento.unidade }}</template>
                     </p>
                 </div>
-                <div class="flex flex-col items-end gap-2">
+                <div class="flex flex-col items-start gap-2 sm:items-end">
                     <BadgePrioridade :cor="atendimento.prioridade_cor" :rotulo="atendimento.prioridade" />
-                    <div class="flex gap-3 text-xs">
+                    <div class="flex flex-wrap gap-3 text-xs">
                         <!-- RF-51 -->
                         <Link :href="route('prontuario.consolidado', paciente.user_id)" class="underline underline-offset-4">
                             Prontuário consolidado

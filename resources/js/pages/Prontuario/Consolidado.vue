@@ -73,9 +73,9 @@ const rotuloNatureza: Record<string, string> = {
                             <template v-if="episodio.desfecho"> · desfecho: {{ episodio.desfecho }}</template>
                         </p>
                     </div>
-                    <div class="flex flex-col items-end gap-2">
+                    <div class="flex flex-col items-start gap-2 sm:items-end">
                         <BadgePrioridade :cor="episodio.prioridade_cor" :rotulo="episodio.prioridade" />
-                        <div class="flex gap-3 text-xs">
+                        <div class="flex flex-wrap gap-3 text-xs">
                             <Link :href="route('prontuario.show', episodio.id)" class="underline underline-offset-4">Abrir</Link>
                             <a
                                 :href="route('prontuario.pdf', episodio.id)"

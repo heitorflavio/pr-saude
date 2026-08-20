@@ -89,9 +89,9 @@ const finalizar = () => formFinalizar.post(route('atendimentos.finalizar', props
                         Situação: <strong>{{ atendimento.status_rotulo }}</strong>
                     </p>
                 </div>
-                <div class="flex flex-col items-end gap-2">
+                <div class="flex flex-col items-start gap-2 sm:items-end">
                     <BadgePrioridade :cor="prioridadeCor" :rotulo="prioridadeRotulo" />
-                    <div class="flex gap-3 text-xs">
+                    <div class="flex flex-wrap gap-3 text-xs">
                         <!--
                           UC-04: é a triagem que coloca o paciente na fila — não existe
                           "enviar para a fila" como ação separada, porque a posição deriva

@@ -82,15 +82,18 @@ const buscarManual = () => {
             </p>
         </div>
 
-        <form class="flex items-end gap-2 border-t border-sidebar-border/70 pt-4 dark:border-sidebar-border" @submit.prevent="buscarManual">
-            <div class="flex-1">
+        <form
+            class="flex flex-col gap-2 border-t border-sidebar-border/70 pt-4 dark:border-sidebar-border sm:flex-row sm:items-end"
+            @submit.prevent="buscarManual"
+        >
+            <div class="w-full min-w-0 flex-1">
                 <Label for="token-manual" class="flex items-center gap-1.5">
                     <KeyboardIcon class="h-3.5 w-3.5" aria-hidden="true" />
                     Busca manual
                 </Label>
                 <Input id="token-manual" v-model="tokenManual" class="mt-1 font-mono" placeholder="Código impresso na pulseira" />
             </div>
-            <Button type="submit" variant="outline">Buscar</Button>
+            <Button type="submit" variant="outline" class="w-full sm:w-auto">Buscar</Button>
         </form>
     </div>
 </template>

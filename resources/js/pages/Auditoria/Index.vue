@@ -70,6 +70,7 @@ const rotuloPagina = (label: string) => (label.includes('Previous') ? 'Anterior'
                 Respondendo por: <strong>{{ pacienteSelecionado.nome }}</strong> (paciente {{ pacienteSelecionado.id }}).
             </p>
 
+            <p class="text-xs text-muted-foreground md:hidden">Deslize horizontalmente para consultar todos os dados da auditoria.</p>
             <div class="overflow-x-auto rounded-xl border">
                 <table class="w-full min-w-[900px] text-left text-sm">
                     <caption class="sr-only">

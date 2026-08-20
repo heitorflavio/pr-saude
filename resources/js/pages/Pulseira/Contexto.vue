@@ -63,19 +63,19 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Leitura de pulseira', href: '#'
             <section v-if="temVinculo && atendimento" class="rounded-xl border border-sidebar-border/70 p-4 dark:border-sidebar-border">
                 <h2 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Atendimento em curso</h2>
                 <dl class="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-                    <div class="flex justify-between gap-4">
+                    <div class="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-4">
                         <dt class="text-muted-foreground">Número</dt>
                         <dd class="font-mono">{{ atendimento.numero }}</dd>
                     </div>
-                    <div class="flex justify-between gap-4">
+                    <div class="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-4">
                         <dt class="text-muted-foreground">Situação</dt>
                         <dd>{{ atendimento.status }}</dd>
                     </div>
-                    <div class="flex justify-between gap-4">
+                    <div class="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-4">
                         <dt class="text-muted-foreground">Admissão</dt>
                         <dd>{{ atendimento.admitido_em }}</dd>
                     </div>
-                    <div class="flex justify-between gap-4">
+                    <div class="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-4">
                         <dt class="text-muted-foreground">Prioridade</dt>
                         <!-- RNF-15: rótulo textual, nunca só a cor. -->
                         <dd>{{ atendimento.prioridade ?? 'Não classificado' }}</dd>

@@ -68,8 +68,9 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Atendimentos', href: '/atendime
                     <span class="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold">{{ emAndamento.length }}</span>
                 </div>
 
+                <p class="mt-3 text-xs text-muted-foreground md:hidden">Deslize horizontalmente para consultar todas as colunas e ações.</p>
                 <div class="mt-3 overflow-x-auto rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                    <table class="w-full text-left text-sm">
+                    <table class="w-full min-w-[850px] text-left text-sm">
                         <caption class="sr-only">
                             Atendimentos em andamento, do mais antigo para o mais recente
                         </caption>
@@ -80,7 +81,7 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Atendimentos', href: '/atendime
                                 <th scope="col" class="px-4 py-3">Prioridade</th>
                                 <th scope="col" class="px-4 py-3">Admissão</th>
                                 <th scope="col" class="px-4 py-3">Responsável</th>
-                                <th scope="col" class="px-4 py-3"><span class="sr-only">Ações</span></th>
+                                <th scope="col" class="w-40 px-4 py-3"><span class="sr-only">Ações</span></th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-sidebar-border/70 dark:divide-sidebar-border">
@@ -99,27 +100,33 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Atendimentos', href: '/atendime
                                 </td>
                                 <td class="px-4 py-3 text-xs text-muted-foreground">{{ atendimento.admitido_em }}</td>
                                 <td class="px-4 py-3 text-xs text-muted-foreground">{{ atendimento.responsavel ?? 'Não atribuído' }}</td>
-                                <td class="px-4 py-3 text-right">
-                                    <Button size="sm" as-child>
-                                        <Link :href="route('atendimentos.show', atendimento.id)">
-                                            <Stethoscope class="h-4 w-4" aria-hidden="true" />
-                                            Abrir
-                                        </Link>
-                                    </Button>
-                                    <Link
-                                        v-if="atendimento.status === 'AGUARDANDO_TRIAGEM' && pode('triagem.classificar')"
-                                        :href="route('triagem.edit', atendimento.id)"
-                                        class="ml-3 text-xs underline underline-offset-4"
-                                    >
-                                        Realizar triagem
-                                    </Link>
-                                    <Link
-                                        v-else-if="atendimento.prioridade && pode('fila.atribuir')"
-                                        :href="route('fila.atribuir', atendimento.id)"
-                                        class="ml-3 text-xs underline underline-offset-4"
-                                    >
-                                        Atribuir
-                                    </Link>
+                                <td class="w-40 px-4 py-3 align-top">
+                                    <div class="grid min-w-32 gap-2">
+                                        <Button size="sm" as-child class="w-full">
+                                            <Link :href="route('atendimentos.show', atendimento.id)">
+                                                <Stethoscope class="h-4 w-4" aria-hidden="true" />
+                                                Abrir
+                                            </Link>
+                                        </Button>
+                                        <Button
+                                            v-if="atendimento.status === 'AGUARDANDO_TRIAGEM' && pode('triagem.classificar')"
+                                            size="sm"
+                                            variant="outline"
+                                            as-child
+                                            class="w-full"
+                                        >
+                                            <Link :href="route('triagem.edit', atendimento.id)">Realizar triagem</Link>
+                                        </Button>
+                                        <Button
+                                            v-else-if="atendimento.prioridade && pode('fila.atribuir')"
+                                            size="sm"
+                                            variant="outline"
+                                            as-child
+                                            class="w-full"
+                                        >
+                                            <Link :href="route('fila.atribuir', atendimento.id)">Atribuir</Link>
+                                        </Button>
+                                    </div>
                                 </td>
                             </tr>
                             <tr v-if="!emAndamento.length">
@@ -132,8 +139,9 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Atendimentos', href: '/atendime
 
             <section>
                 <h2 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Encerrados recentemente</h2>
+                <p class="mt-3 text-xs text-muted-foreground md:hidden">Deslize horizontalmente para consultar todas as colunas.</p>
                 <div class="mt-3 overflow-x-auto rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                    <table class="w-full text-left text-sm">
+                    <table class="w-full min-w-[620px] text-left text-sm">
                         <caption class="sr-only">
                             Vinte atendimentos encerrados mais recentes
                         </caption>

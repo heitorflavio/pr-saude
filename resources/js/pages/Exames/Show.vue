@@ -131,7 +131,7 @@ const breadcrumbs: BreadcrumbItem[] = [
             </form>
 
             <section v-if="resultado" class="grid gap-4 rounded-xl border p-4">
-                <header class="flex items-start justify-between">
+                <header class="flex flex-wrap items-start justify-between gap-2">
                     <h2 class="text-lg font-semibold">Resultado</h2>
                     <span
                         v-if="resultado.critico"
@@ -143,7 +143,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                     >
                 </header>
                 <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm">
+                    <table class="w-full min-w-[560px] text-left text-sm">
                         <thead>
                             <tr>
                                 <th>Analito</th>

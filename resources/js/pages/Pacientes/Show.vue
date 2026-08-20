@@ -125,15 +125,15 @@ const mascararCpf = (cpf: unknown) => (typeof cpf === 'string' ? cpf.replace(/(\
                 <div class="rounded-xl border border-sidebar-border/70 p-4 dark:border-sidebar-border">
                     <h2 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Documentos</h2>
                     <dl class="mt-3 space-y-2 text-sm">
-                        <div class="flex justify-between gap-4">
+                        <div class="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-4">
                             <dt class="text-muted-foreground">CPF</dt>
                             <dd class="font-mono">{{ mascararCpf(paciente.cpf) }}</dd>
                         </div>
-                        <div class="flex justify-between gap-4">
+                        <div class="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-4">
                             <dt class="text-muted-foreground">CNS</dt>
                             <dd class="font-mono">{{ paciente.cns ?? '—' }}</dd>
                         </div>
-                        <div class="flex justify-between gap-4">
+                        <div class="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-4">
                             <dt class="text-muted-foreground">Nome da mãe</dt>
                             <dd>{{ paciente.nome_mae ?? '—' }}</dd>
                         </div>
@@ -143,15 +143,15 @@ const mascararCpf = (cpf: unknown) => (typeof cpf === 'string' ? cpf.replace(/(\
                 <div class="rounded-xl border border-sidebar-border/70 p-4 dark:border-sidebar-border">
                     <h2 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Contato</h2>
                     <dl class="mt-3 space-y-2 text-sm">
-                        <div class="flex justify-between gap-4">
+                        <div class="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-4">
                             <dt class="text-muted-foreground">Telefone</dt>
                             <dd>{{ paciente.telefone ?? '—' }}</dd>
                         </div>
-                        <div class="flex justify-between gap-4">
+                        <div class="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-4">
                             <dt class="text-muted-foreground">Emergência</dt>
                             <dd>{{ paciente.contato_emergencia_nome ?? '—' }}</dd>
                         </div>
-                        <div class="flex justify-between gap-4">
+                        <div class="flex flex-col gap-0.5 sm:flex-row sm:justify-between sm:gap-4">
                             <dt class="text-muted-foreground">Município</dt>
                             <dd>{{ paciente.municipio ?? '—' }} {{ paciente.uf ?? '' }}</dd>
                         </div>

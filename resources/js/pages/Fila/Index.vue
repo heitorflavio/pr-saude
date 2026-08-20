@@ -73,7 +73,7 @@ const alternar = (geral: boolean) => router.get(route('fila.index'), geral ? { f
                     {{ contexto.geral ? 'Fila geral' : `Fila de ${contexto.profissional}` }}
                 </h1>
 
-                <div class="flex gap-2">
+                <div class="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
                     <Button type="button" variant="outline" size="sm" :disabled="!contexto.geral" @click="alternar(false)"> Minha fila </Button>
                     <Button type="button" variant="outline" size="sm" :disabled="contexto.geral" @click="alternar(true)"> Fila geral </Button>
                 </div>
@@ -81,8 +81,9 @@ const alternar = (geral: boolean) => router.get(route('fila.index'), geral ? { f
 
             <p class="text-xs text-muted-foreground">Atualiza automaticamente a cada 10 segundos.</p>
 
+            <p class="text-xs text-muted-foreground md:hidden">Deslize horizontalmente para consultar todas as colunas e ações.</p>
             <div class="overflow-x-auto rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                <table class="w-full text-left text-sm">
+                <table class="w-full min-w-[900px] text-left text-sm">
                     <caption class="sr-only">
                         Pacientes aguardando atendimento, em ordem de prioridade
                     </caption>

@@ -61,8 +61,8 @@ const rotuloPagina = (label: string) => {
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-col gap-4 p-4">
             <div class="flex flex-wrap items-end justify-between gap-4">
-                <form class="flex w-full max-w-xl items-end gap-2" @submit.prevent="buscar">
-                    <div class="flex-1">
+                <form class="flex w-full max-w-xl flex-col gap-2 sm:flex-row sm:items-end" @submit.prevent="buscar">
+                    <div class="w-full min-w-0 flex-1">
                         <Label for="busca">Buscar paciente</Label>
                         <Input
                             id="busca"
@@ -72,19 +72,19 @@ const rotuloPagina = (label: string) => {
                             placeholder="Nome, CPF, CNS, data de nascimento, código provisório ou token da pulseira"
                         />
                     </div>
-                    <Button type="submit">
+                    <Button type="submit" class="w-full sm:w-auto">
                         <Search class="h-4 w-4" aria-hidden="true" />
                         Buscar
                     </Button>
                 </form>
 
-                <div class="flex gap-2">
-                    <Button type="button" variant="outline" @click="mostrarLeitor = !mostrarLeitor">
+                <div class="grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap">
+                    <Button type="button" variant="outline" class="w-full sm:w-auto" @click="mostrarLeitor = !mostrarLeitor">
                         <ScanLine class="h-4 w-4" aria-hidden="true" />
                         Ler pulseira
                     </Button>
 
-                    <Button v-if="pode('paciente.criar')" as-child>
+                    <Button v-if="pode('paciente.criar')" as-child class="w-full sm:w-auto">
                         <Link :href="route('pacientes.create')">
                             <UserPlus class="h-4 w-4" aria-hidden="true" />
                             Novo paciente
@@ -97,8 +97,9 @@ const rotuloPagina = (label: string) => {
                 <LeitorPulseira />
             </section>
 
+            <p class="text-xs text-muted-foreground md:hidden">Deslize horizontalmente para consultar todos os dados dos pacientes.</p>
             <div class="overflow-x-auto rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                <table class="w-full text-left text-sm">
+                <table class="w-full min-w-[640px] text-left text-sm">
                     <caption class="sr-only">
                         Pacientes cadastrados
                     </caption>

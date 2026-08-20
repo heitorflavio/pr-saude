@@ -33,7 +33,7 @@ defineProps<{
                     </header>
                     <div v-if="e.resultado" class="mt-4 grid gap-3 border-t pt-3">
                         <div class="overflow-x-auto">
-                            <table v-if="e.resultado.itens.length" class="w-full text-left text-sm">
+                            <table v-if="e.resultado.itens.length" class="w-full min-w-[480px] text-left text-sm">
                                 <thead>
                                     <tr>
                                         <th>Item</th>
