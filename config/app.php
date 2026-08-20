@@ -107,6 +107,27 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Chave HMAC do token de pulseira (doc §8.2.1)
+    |--------------------------------------------------------------------------
+    |
+    | Assina o sufixo de verificação de 4 caracteres do token de pulseira. Serve para
+    | rejeitar token malformado sem consultar o banco, detectar leitura corrompida de
+    | uma pulseira suja ou rasgada, e distinguir manipulação deliberada de erro de
+    | digitação na trilha de auditoria.
+    |
+    | ⚠️ ESTA CHAVE NUNCA PODE SER ROTACIONADA EM PRODUÇÃO.
+    |
+    | RN-03 exige que o token da pulseira seja permanente. O corpo do token está gravado
+    | em `paciente.token_pulseira`, mas o checksum é recalculado a cada validação -- se a
+    | chave mudar, TODAS as pulseiras já impressas passam a ser recusadas de uma vez. Uma
+    | pulseira que deixa de funcionar é risco assistencial, não inconveniência.
+    |
+    */
+
+    'pulseira_key' => env('PULSEIRA_KEY'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Maintenance Mode Driver
     |--------------------------------------------------------------------------
     |

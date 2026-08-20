@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Contracts\GeradorTokenPulseira;
+use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Database\Factories\PacienteFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -89,9 +92,15 @@ class Paciente extends Model
      */
     protected function idade(): Attribute
     {
-        return Attribute::get(
-            fn (): ?int => $this->data_nascimento?->diffInYears(now())
-        );
+        return Attribute::get(function (): ?int {
+            // O cast e obrigatorio: `diffInYears` devolve float no Carbon 3, e este
+            // arquivo esta em strict_types -- sem ele, ler $paciente->idade lancaria
+            // TypeError. A truncagem para baixo tambem e o comportamento correto:
+            // na vespera do aniversario a pessoa ainda tem a idade anterior.
+            return $this->data_nascimento === null
+                ? null
+                : (int) $this->data_nascimento->diffInYears(now());
+        });
     }
 
     /**
@@ -121,6 +130,63 @@ class Paciente extends Model
         $anos = (int) $nascimento->diffInYears($referencia);
 
         return $anos === 1 ? '1 ano' : "{$anos} anos";
+    }
+
+    /**
+     * RF-09: busca por nome, CPF, CNS, data de nascimento ou token de pulseira.
+     *
+     * O token e comparado por igualdade exata e so depois de passar pela validacao de
+     * formato (doc 8.2.1): um token malformado e descartado por comparacao de string,
+     * antes de qualquer SELECT. Uma varredura de 100.000 tentativas nao vira 100.000
+     * consultas ao banco.
+     */
+    public function scopeBusca(Builder $query, ?string $termo): Builder
+    {
+        $termo = trim((string) $termo);
+
+        if ($termo === '') {
+            return $query;
+        }
+
+        $digitos = preg_replace('/\D/', '', $termo) ?? '';
+
+        return $query->where(function (Builder $q) use ($termo, $digitos) {
+            $q->where('nome_completo', 'like', "%{$termo}%")
+                ->orWhere('nome_social', 'like', "%{$termo}%");
+
+            if (strlen($digitos) === 11) {
+                $q->orWhere('cpf', $digitos);
+            }
+
+            if (strlen($digitos) === 15) {
+                $q->orWhere('cns', $digitos);
+            }
+
+            // Codigo provisorio do paciente nao identificado (RF-04).
+            if (str_starts_with(mb_strtoupper($termo), 'NI-')) {
+                $q->orWhere('codigo_provisorio', mb_strtoupper($termo));
+            }
+
+            if (app(GeradorTokenPulseira::class)->valido($termo)) {
+                $q->orWhere('token_pulseira', $termo);
+            }
+
+            // Data de nascimento aceita tanto 1985-03-14 quanto 14/03/1985.
+            // `createFromFormat` lanca InvalidFormatException no Carbon 3 em vez de
+            // devolver false, entao a tentativa vai dentro de rescue().
+            foreach (['Y-m-d', 'd/m/Y'] as $formato) {
+                $data = rescue(
+                    fn () => Carbon::createFromFormat($formato, $termo),
+                    null,
+                    report: false
+                );
+
+                if ($data instanceof Carbon && $data->format($formato) === $termo) {
+                    $q->orWhereDate('data_nascimento', $data->toDateString());
+                    break;
+                }
+            }
+        });
     }
 
     /** RN-07: no maximo um atendimento nao finalizado por unidade. */

@@ -29,6 +29,8 @@ export interface SharedData {
     name: string;
     quote: { message: string; author: string };
     auth: Auth;
+    /** `alerta` e distinto de `status`: A1 do UC-01 nao e sucesso nem erro. */
+    flash: { status: string | null; alerta: string | null };
     ziggy: {
         location: string;
         url: string;

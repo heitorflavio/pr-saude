@@ -7,13 +7,13 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 
 /**
- * Carga de domínio do SGH.
+ * Carga mínima do SGH: o que é preciso para o sistema funcionar e para alguém conseguir
+ * entrar nele.
  *
- * Só catálogos aqui: são os dados sem os quais o sistema não funciona (a fila precisa
- * das cinco cores, a prescrição precisa do catálogo de medicamentos). Os dados de
- * demonstração -- unidade, equipe, pacientes, atendimentos -- entram na Fase 13, em um
- * seeder próprio, para que `migrate:fresh --seed` continue servindo tanto ao teste
- * quanto à navegação.
+ * Catálogos (as cinco cores de Manchester, CID-10, medicamentos, exames) e uma conta
+ * administrativa. Os dados de *demonstração* -- unidade, equipe completa, 30 pacientes,
+ * atendimentos em estados variados -- entram na Fase 13, em seeder próprio, para que
+ * `migrate:fresh --seed` continue servindo tanto ao teste quanto à navegação.
  */
 class DatabaseSeeder extends Seeder
 {
@@ -22,6 +22,8 @@ class DatabaseSeeder extends Seeder
         $this->call([
             // A matriz RBAC vem primeiro: tudo o mais depende de haver papéis.
             RbacSeeder::class,
+            // Depois dela, porque precisa da role `admin`.
+            UsuarioAdministradorSeeder::class,
             ClassificacaoRiscoSeeder::class,
             Cid10Seeder::class,
             QueixaSeeder::class,

@@ -65,6 +65,18 @@ class HandleInertiaRequests extends Middleware
                 'roles' => $usuario?->getRoleNames() ?? [],
                 'permissoes' => $usuario?->getAllPermissions()->pluck('name') ?? [],
             ],
+
+            /*
+             * Mensagens de uma requisicao para a proxima.
+             *
+             * `alerta` e distinto de `status` de proposito: A1 do UC-01 -- "ja existe
+             * cadastro para este CPF" nao e sucesso nem erro de validacao, e um desvio
+             * de fluxo que precisa de destaque proprio na tela.
+             */
+            'flash' => [
+                'status' => fn () => $request->session()->get('status'),
+                'alerta' => fn () => $request->session()->get('alerta'),
+            ],
         ];
     }
 }

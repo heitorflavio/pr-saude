@@ -27,6 +27,9 @@
         <env name="ARGON_MEMORY" value="8"/>
         <env name="ARGON_TIME" value="1"/>
         <env name="ARGON_THREADS" value="1"/>
+        <!-- Chave fixa na suite: os testes de token precisam de resultado deterministico
+             para provar que uma assinatura de outra chave e recusada (doc 8.2.1). -->
+        <env name="PULSEIRA_KEY" value="base64:c2doLXRlc3RlLXB1bHNlaXJhLWtleS1uYW8tdXNhcg=="/>
         <env name="CACHE_STORE" value="array"/>
         <!-- As invariantes criticas do SGH sao garantidas pelo banco, nao pela aplicacao:
              as 18 restricoes CHECK, a coluna gerada ativo_key (RN-07/D-07) e as UNIQUE KEY

@@ -459,3 +459,146 @@ login antes de existir quem preencha matrícula deixaria o sistema sem forma de 
 **A resolver:** quando a gestão de usuários da equipe for construída, migrar o login para
 `users.login`. O portal do paciente (Fase 11) já nasce usando `login` = CPF, conforme
 RN-04 — não há dívida do lado do paciente.
+
+---
+
+## D-24 · A3 do UC-01: credencial de menor no CPF do responsável **não** implementada
+
+**Origem:** lacuna do documento · **Status:** 🔴 **requer decisão** · **2026-08-18**
+
+O fluxo alternativo A3 do UC-01 diz: paciente menor de idade "exige dados do responsável
+legal. **A credencial de acesso é emitida no CPF do responsável**".
+
+**O que foi implementado.** A parte inequívoca: o cadastro de menor de 18 anos exige nome
+e telefone do responsável legal (`contato_emergencia_nome` e
+`contato_emergencia_telefone`), e o formulário rotula os campos como "responsável legal"
+quando a data de nascimento indica menoridade.
+
+**O que não foi, e por quê.** Emitir a credencial no CPF do responsável esbarra em dois
+problemas que o documento não resolve:
+
+1. **`users.login` é `unique`.** Se o responsável já é paciente da mesma unidade — o que
+   é comum, uma mãe atendida junto com o filho — o login colidiria e o cadastro do menor
+   falharia. O documento não define o desempate.
+2. **Não há coluna para o CPF do responsável** no `schema.sql`. `paciente` tem
+   `nome_mae`, `contato_emergencia_nome` e `contato_emergencia_telefone`, nenhum deles
+   com CPF. Implementar exigiria acrescentar coluna, o que é divergência de esquema.
+
+Há ainda uma terceira questão, de projeto: uma credencial única compartilhada entre mãe e
+filho significa que o portal não consegue distinguir de quem é o dado exibido — e RN-26
+exige que o paciente acesse exclusivamente os próprios dados.
+
+**Opções para sua decisão:**
+
+| Opção | Consequência |
+|---|---|
+| Menor mantém login no **próprio CPF** (comportamento atual), com o responsável apenas registrado como contato | Não requer mudança de esquema. O acesso ao portal, quando existir, é feito com o CPF do menor |
+| Adicionar `paciente.responsavel_cpf` e um vínculo responsável → dependentes, com o portal permitindo alternar entre eles | Fiel à intenção do A3, resolve RN-26, mas é divergência de esquema e trabalho de Fase 11 |
+| Menor sem CPF entra como identificação provisória vinculada ao responsável | Reaproveita RF-04, mas distorce o significado de "não identificado" |
+
+Enquanto não houver decisão, **menores são cadastrados com o próprio CPF** e o
+responsável fica registrado como contato de emergência.
+
+---
+
+## D-25 · `TokenPulseiraService` entregue na Fase 3, não na Fase 4
+
+**Origem:** ordem de dependência · **Status:** ✅ aplicada · **2026-08-18**
+
+O prompt aloca o `TokenPulseiraService` na Fase 4. Mas o passo 10c do UC-01 — escopo da
+Fase 3 — exige que o cadastro "gere o token de pulseira" **dentro da mesma transação**.
+Não havia como entregar a Fase 3 sem ele.
+
+**Decisão.** Implementar o serviço completo agora, conforme a doc §8.2.1 (22 caracteres
+base62 via `random_int` + 4 de HMAC-SHA256, validação com `hash_equals`, chave em
+`config('app.pulseira_key')`), com os quatro testes da *definition of done* da Fase 4 já
+escritos: 20.000 gerados sem colisão, caractere alterado rejeitado, token truncado
+rejeitado, token de outra chave rejeitado.
+
+**O que resta para a Fase 4:** QR Code (`endroid/qr-code`, versão 5, correção Q, 22 mm), o
+template da pulseira 25 × 280 mm, o registro em `pulseira_impressao`, a rota
+`GET /p/{token}` e o composable de leitura por câmera.
+
+⚠️ **`PULSEIRA_KEY` nunca pode ser rotacionada em produção.** O corpo do token está
+gravado em `paciente.token_pulseira`, mas o checksum é recalculado a cada validação: se a
+chave mudar, todas as pulseiras já impressas passam a ser recusadas de uma vez. RN-03
+exige que o token seja permanente, e uma pulseira que deixa de funcionar é risco
+assistencial. A advertência está em `config/app.php` e no `.env.example`.
+
+---
+
+## D-26 · Contrato `GeradorTokenPulseira` extraído para tornar E1 testável
+
+**Origem:** necessidade de teste · **Status:** ✅ aplicada · **2026-08-18**
+
+E1 do UC-01 exige que a falha na geração do token produza **rollback integral** do
+cadastro. Provar isso por teste requer injetar a falha — e `TokenPulseiraService` é
+`final`, deliberadamente: ninguém deve poder sobrescrever a geração de um identificador
+de segurança por herança.
+
+**Decisão.** Extrair a interface `App\Contracts\GeradorTokenPulseira` (dois métodos),
+implementada pelo serviço e ligada no `AppServiceProvider`. A implementação continua
+fechada; a invariante fica testável.
+
+É a única indireção desse tipo no projeto, e existe por uma razão nomeada — não por
+princípio genérico de "programar para interfaces".
+
+---
+
+## D-27 · A ficha cadastral não exige vínculo assistencial
+
+**Origem:** correção de erro de projeto detectado na Fase 3 · **Status:** ✅ aplicada ·
+**2026-08-18**
+
+A primeira versão da rota `pacientes.show` recebeu o middleware `vinculo` (RN-28). Estava
+errado, e o erro só apareceu ao escrever o teste do fluxo da recepção.
+
+**O problema.** RN-28 diz que "nenhum profissional acessa **prontuário** de paciente ao
+qual não esteja vinculado". A ficha cadastral não é prontuário: é nome, documentos,
+contato e alergias. E o passo 11 do UC-01 manda exibir exatamente essa ficha logo após o
+cadastro, com as ações "Imprimir Pulseira" e "Novo Atendimento" — instante em que a
+recepcionista não tem vínculo assistencial nenhum, porque o atendimento ainda não existe.
+Exigir vínculo ali tornaria o próprio fluxo de cadastro impossível de concluir.
+
+**Decisão.** `PacientePolicy::verFichaCadastral` exige apenas a permission
+`paciente.ler`, e a rota mantém `auditar:paciente.ler`. O acesso é amplo e integralmente
+auditado: o controle é a trilha, não a porta.
+
+O middleware `vinculo` e a Policy `verContexto` continuam existindo, e entram nas rotas
+de **prontuário**, na Fase 8 — que é onde RN-28 se aplica.
+
+---
+
+## D-28 · Conta administrativa inicial em seeder próprio
+
+**Origem:** correção de um `User::create()` que quebrava o seed · **Status:** ✅ aplicada ·
+**2026-08-18**
+
+O `DatabaseSeeder` recebeu, fora desta sessão, um bloco que criava um usuário com
+`bcrypt('password')` e sem `login` nem `tipo`. Ele **quebrava `migrate:fresh --seed`** —
+que é justamente a *definition of done* da Fase 1 e da Fase 13.
+
+**Os três defeitos, em ordem de quem estoura primeiro:**
+
+1. **`bcrypt()` contra o driver Argon2id.** RNF-07 configura `hashing.driver = argon2id`,
+   e o cast `hashed` do model chama `Hash::verifyConfiguration()`. Um hash `$2y$` pronto
+   faz esse método lançar `RuntimeException`, e o seed inteiro morre.
+2. **`login` e `tipo` são `NOT NULL`** desde a migration `2026_08_18_210000` (D-14).
+   Mesmo que o hash passasse, o `INSERT` violaria a constraint.
+3. **Senha fixa e permanente.** Uma credencial padrão conhecida que nunca expira é a
+   porta dos fundos clássica de sistema hospitalar.
+
+**Decisão.** A intenção era legítima e necessária — sem cadastro público (D-18), não há
+como entrar no sistema após `migrate:fresh`. Em vez de remover, foi implementada
+corretamente em `UsuarioAdministradorSeeder`: senha em texto claro (o cast aplica
+Argon2id), `login` e `tipo` preenchidos, role `admin` sincronizada, e
+**`senha_provisoria = true`** — o middleware `SenhaProvisoria` obriga a troca no primeiro
+acesso (RN-06).
+
+Credenciais parametrizadas por `ADMIN_LOGIN`, `ADMIN_EMAIL` e `ADMIN_SENHA`, documentadas
+no `.env.example`. O seeder é idempotente (`updateOrCreate` por `login`).
+
+**Lição operacional:** os testes não pegaram isso porque nenhum deles chama o
+`DatabaseSeeder` — eles semeiam `RbacSeeder` e `ClassificacaoRiscoSeeder` diretamente, por
+velocidade. `migrate:fresh --seed` precisa entrar no checklist de cada checkpoint, não só
+no da fase que o menciona.

@@ -10,8 +10,8 @@ testes que passam e as pendências.
 | 0 | Inspeção do projeto | ✅ |
 | 1 | Fundação do banco | ✅ |
 | 2 | Autenticação e autorização | ✅ |
-| 3 | Cadastro de paciente | ⬜ próxima |
-| 4 | Token, QR Code e pulseira | ⬜ |
+| 3 | Cadastro de paciente | ✅ |
+| 4 | Token, QR Code e pulseira | 🔄 token entregue (D-25) |
 | 5 | Atendimento e máquina de estados | ⬜ |
 | 6 | Triagem e classificação de risco | ⬜ |
 | 7 | Fila e painel do profissional | ⬜ |
@@ -22,7 +22,7 @@ testes que passam e as pendências.
 | 12 | Auditoria e indicadores | ⬜ |
 | 13 | Fechamento | ⬜ |
 
-**Testes:** `php artisan test` → **107 passando, 720 asserções** (~90 s, MySQL).
+**Testes:** `php artisan test` → **151 passando, 819 asserções** (~130 s, MySQL).
 
 ---
 
@@ -269,18 +269,113 @@ verificações de invariante:
 
 ---
 
-## ⬜ Fase 3 — Cadastro de paciente
+## ✅ Fase 3 — Cadastro de paciente (2026-08-18)
 
-Escopo previsto:
+UC-01 completo, com os fluxos alternativos A1, A2, A4 e A5 e as exceções E1 e E2. A3
+ficou parcial — ver pendências.
 
-- [ ] `CadastrarPacienteAction` — em uma transação: `User` + `Paciente` + credencial
-      (login = CPF, senha = `DDMMAAAA`, `senha_provisoria = true`) + `token_pulseira` +
-      auditoria (RN-04, RN-05)
-- [ ] Validação de CPF com dígito verificador (regra customizada, não regex)
-- [ ] Cadastro sem CPF: `codigo_provisorio` no formato `NI-2026-0031` (RF-04)
-- [ ] `RegularizarIdentificacaoAction` preservando o histórico (RN-30)
-- [ ] Idade derivada com granularidade adaptativa (D-01) — já implementada em `Paciente`,
-      falta o teste das quatro datas-limite
-- [ ] Alergias e condições crônicas em destaque em toda tela (RF-11)
-- [ ] Busca por nome, CPF, CNS, data de nascimento e token (RF-09)
-- [ ] Páginas `Pacientes/Index`, `Pacientes/Create`, `Pacientes/Show`
+### Entregue
+
+**Domínio**
+
+- `CadastrarPacienteAction` — em **uma transação**: `User` + `Paciente` + credencial
+  (login = CPF, senha = `DDMMAAAA` da data de nascimento, `senha_provisoria = true`) +
+  `token_pulseira` + alergias + condições + auditoria + evento (RN-04, RN-05, RN-06).
+- `RegularizarIdentificacaoAction` (RN-30) — vincula o CPF real **preservando o
+  histórico**: mesmo `user_id`, mesmo token, mesmo prontuário.
+- `TokenPulseiraService` conforme doc §8.2.1, com o contrato `GeradorTokenPulseira`
+  (D-25, D-26).
+- `GeradorCodigoProvisorioService` — `NI-2026-0031`, sequencial por ano, com
+  `lockForUpdate` (RF-04).
+- Regra `App\Rules\Cpf` — dígito verificador por módulo 11, **não regex**, recusando
+  também os CPFs de dígitos repetidos que passam no cálculo.
+- Exceções nomeadas: `PacienteJaCadastradoException` (carrega o paciente existente),
+  `TokenPulseiraIndisponivelException`, `RegularizacaoInvalidaException`.
+- Eventos `PacienteCadastrado` e `IdentificacaoRegularizada`.
+
+**Interface**
+
+- `PacienteController` (index, create, store, show, regularizar) — nenhuma escrita fora
+  de Action.
+- `CadastrarPacienteRequest` e `RegularizarIdentificacaoRequest`, com A4 (dígito
+  verificador), A5 (data futura / idade > 130) e A3 parcial (responsável para menor).
+- Busca por nome, CPF, CNS, data de nascimento (dois formatos), código provisório e
+  token de pulseira (RF-09) — o token é validado por checksum **antes** de virar
+  `SELECT`.
+- Páginas `Pacientes/Index`, `Pacientes/Create`, `Pacientes/Show`.
+- `PainelAlergias` e `BadgeAlergia` (RF-11, RNF-15): cor + rótulo + ícone, nunca só a
+  cor. A ausência de alergia também é exibida explicitamente — tela vazia poderia
+  significar apenas que ninguém perguntou.
+
+### Definition of done
+
+| Critério | Estado |
+|---|---|
+| CPF inválido recusado | ✅ |
+| CPF duplicado oferece o cadastro existente em vez de duplicar | ✅ |
+| Cadastro sem CPF funciona | ✅ |
+| A credencial é criada na mesma transação | ✅ |
+| Falha na geração do token faz rollback e não deixa paciente órfão | ✅ |
+| Idade: véspera, dia do aniversário, 29/02, recém-nascido | ✅ 9 testes |
+
+### Testes
+
+`php artisan test` → **151 passando, 819 asserções**.
+
+- `CadastroPacienteTest` (23) — fluxo principal, A1, A2, A4, A5, A3 parcial, E1, E2,
+  RN-30, RF-09 e autorização das rotas.
+- `IdadeDerivadaTest` (9) — os quatro casos exigidos, mais as fronteiras de 30 dias e
+  24 meses, e a idade em data de referência (a "idade congelada" da pulseira, doc §8.4).
+- `TokenPulseiraTest` (9) — os quatro casos da DoD da Fase 4, mais opacidade e não
+  exposição na serialização.
+
+### Bugs corrigidos nesta fase
+
+1. **`$paciente->idade` lançaria `TypeError`**: `diffInYears` devolve `float` no Carbon 3
+   e o atributo declara `?int` num arquivo com `strict_types=1`. Corrigido com cast
+   explícito, que também é a truncagem correta.
+2. **`Carbon::createFromFormat` lança exceção** no Carbon 3 em vez de devolver `false` —
+   a busca por data quebraria com termo não-data. Envolvido em `rescue()`.
+3. **`vinculo` na ficha cadastral** impediria a recepcionista de ver a ficha que acabou
+   de criar (D-27).
+4. **`migrate:fresh --seed` estava quebrado** por um `User::create()` com `bcrypt()` e sem
+   `login`/`tipo` no `DatabaseSeeder` — alteração vinda de fora desta sessão. Substituído
+   por `UsuarioAdministradorSeeder`, que faz a mesma coisa corretamente (D-28). Os testes
+   não pegaram porque nenhum deles chama o `DatabaseSeeder`.
+
+### Decisões tomadas nesta fase
+
+| Decisão | Registro |
+|---|---|
+| A3 (credencial de menor no CPF do responsável) **não** implementada | D-24 — **requer decisão** |
+| `TokenPulseiraService` entregue aqui, não na Fase 4 | D-25 |
+| Contrato `GeradorTokenPulseira` para tornar E1 testável | D-26 |
+| Ficha cadastral não exige vínculo assistencial | D-27 |
+
+### Pendências
+
+1. **A3 do UC-01** (D-24): menores são cadastrados com o próprio CPF. Emitir a credencial
+   no CPF do responsável exigiria coluna nova e uma política de desempate de `login`
+   único. **Requer sua decisão.**
+2. **A suíte passou de 130 s** — o `RbacSeeder` roda a cada teste. Vai piorar a cada fase.
+3. `PULSEIRA_KEY` está no `.env` local; a advertência de não rotacionar está em
+   `config/app.php` e no `.env.example`, mas ainda não há checklist de implantação
+   (Fase 13).
+4. **`migrate:fresh --seed` precisa entrar no checklist de todo checkpoint** (D-28), não
+   só no da fase que o menciona — a suíte não o exercita.
+5. **`php` do Herd deixou de auto-detectar a isolação** entre sessões: `php -v` na pasta
+   devolve 8.2.31 enquanto o site segue em 8.4. Contorno: usar `herd php artisan ...`.
+
+---
+
+## 🔄 Fase 4 — Token, QR Code e pulseira
+
+Token entregue na Fase 3 (D-25). Resta:
+
+- [ ] QR Code versão 5, correção Q, 22 mm (`endroid/qr-code`)
+- [ ] Template da pulseira 25 × 280 mm (doc §8.4), sem CPF, CNS, CID nem endereço
+- [ ] Registro em `pulseira_impressao` com motivo (RF-15); reimpressão usa o mesmo token (RF-16)
+- [ ] Rota `GET /p/{token}` com o fluxograma da doc §8.3 — token inválido e token válido
+      sem sessão produzem respostas **indistinguíveis**
+- [ ] Composable `useQrScanner` com Barcode Detection API + ponyfill
+- [ ] ⚠️ Validação manual (ler o QR com celular) fica **bloqueada** até haver HTTPS (D-09)

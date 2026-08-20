@@ -38,6 +38,25 @@ final class PacientePolicy
     }
 
     /**
+     * Ficha CADASTRAL: nome, documentos, contato e alergias.
+     *
+     * Não exige vínculo assistencial, e a distinção é deliberada. RN-28 protege o
+     * **prontuário** -- "nenhum profissional acessa prontuário de paciente ao qual não
+     * esteja vinculado". A ficha cadastral é dado administrativo: a recepcionista que
+     * acabou de cadastrar precisa vê-la para imprimir a pulseira e abrir o atendimento
+     * (UC-01, passo 11), e nesse instante ela não tem vínculo assistencial nenhum --
+     * o atendimento ainda não existe.
+     *
+     * Exigir vínculo aqui tornaria o próprio fluxo de cadastro impossível de concluir.
+     * O acesso é amplo e **integralmente auditado** (doc §14.3); o controle é a trilha,
+     * não a porta.
+     */
+    public function verFichaCadastral(User $user, Paciente $paciente): bool
+    {
+        return $user->can('paciente.ler');
+    }
+
+    /**
      * Contexto clínico completo: exige vínculo assistencial (RN-28).
      *
      * O vínculo existe se o profissional é o responsável pelo atendimento, se o

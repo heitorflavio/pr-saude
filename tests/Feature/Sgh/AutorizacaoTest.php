@@ -6,6 +6,7 @@ use App\Models\Paciente;
 use App\Models\User;
 use Database\Seeders\RbacSeeder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -232,7 +233,7 @@ it('libera verContexto ao admin, que nao tem vinculo assistencial com ninguem', 
     $admin = User::factory()->admin()->create();
     $paciente = Paciente::factory()->create();
 
-    expect(Illuminate\Support\Facades\Gate::forUser($admin)->allows('verContexto', $paciente))->toBeTrue();
+    expect(Gate::forUser($admin)->allows('verContexto', $paciente))->toBeTrue();
 });
 
 it('nao libera o admin para quebra de sigilo, nem pela permission nem pela policy', function () {
