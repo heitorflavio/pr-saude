@@ -747,3 +747,60 @@ os testes de impressão usam `Profissional::factory()`, que sempre cria o regist
 caminho que quebra é o do usuário que o *seeder* cria. Rodar o sistema de verdade
 encontrou em um minuto o que a suíte não encontraria — é exatamente para isso que a
 *definition of done* da Fase 4 pede validação manual.
+
+---
+
+## D-34 · A numeração do atendimento é sequencial por ano, **global entre unidades**
+
+**Origem:** contradição entre o prompt e o `schema.sql` · **Status:** ⚠️ divergência do
+prompt, com justificativa · **2026-08-18**
+
+O prompt (Fase 5) pede numeração "sequencial por ano **e unidade** (`2026-000148`)". Isso
+é impossível de cumprir junto com o `schema.sql`, que declara:
+
+```sql
+UNIQUE KEY uk_atendimento_numero (numero)
+```
+
+O índice é **global**, não por unidade, e o formato documentado — `2026-000148` — não tem
+nenhum componente que identifique a unidade. Contar por unidade faria a segunda UPA
+colidir em `2026-000001` no primeiro atendimento do ano. O teste falhou exatamente assim
+antes da correção.
+
+**Decisão: sequencial por ano, global entre unidades.**
+
+As três saídas possíveis, e por que esta:
+
+| Saída | Problema |
+|---|---|
+| Contador por unidade, formato atual | Viola `uk_atendimento_numero`. Impossível |
+| Contador por unidade, número prefixado com a unidade | Muda o formato documentado e alonga o número lido em voz alta |
+| **Contador global por ano** (escolhida) | Diverge da letra do prompt, mas respeita o schema e o formato |
+
+Há também um argumento de uso real a favor da escolha: o número é o identificador de
+recuperação **quando o QR falha** (doc §8.4) e é ditado por telefone entre setores. Dois
+episódios diferentes com `2026-000001` em unidades distintas — situação corriqueira para
+um paciente transferido — seria pior que um contador por unidade.
+
+**Se a numeração por unidade for realmente desejada,** a mudança é de esquema: trocar
+`UNIQUE (numero)` por `UNIQUE (unidade_id, numero)`. Isso **requer decisão**, porque
+tornaria o número ambíguo fora do contexto da unidade.
+
+---
+
+## D-35 · `permanencia_segundos` é truncada em zero quando o relógio anda para trás
+
+**Origem:** defeito encontrado por teste · **Status:** ✅ corrigida · **2026-08-18**
+
+`atendimento_status_historico.permanencia_segundos` é `INT UNSIGNED`. Um valor negativo
+não é apenas errado: o MySQL recusa o `INSERT` inteiro com
+`Out of range value for column`.
+
+A referência do cálculo é a transição anterior. Ela pode ficar **no futuro** em relação
+ao `now()` em três situações reais: desvio de relógio entre servidores de aplicação,
+importação de registro com data retroativa, e correção manual de horário no servidor.
+
+**Decisão.** `max(0, ...)`. Perder a transição de status por causa de um relógio seria
+muito pior que gravar zero — o paciente ficaria preso no estado anterior, e a fila
+pararia de refletir a realidade. O zero é visivelmente errado num indicador; o
+atendimento travado é invisível até alguém reclamar.

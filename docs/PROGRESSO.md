@@ -12,8 +12,8 @@ testes que passam e as pendências.
 | 2 | Autenticação e autorização | ✅ |
 | 3 | Cadastro de paciente | ✅ |
 | 4 | Token, QR Code e pulseira | ✅ |
-| 5 | Atendimento e máquina de estados | ⬜ próxima |
-| 6 | Triagem e classificação de risco | ⬜ |
+| 5 | Atendimento e máquina de estados | ✅ |
+| 6 | Triagem e classificação de risco | ⬜ próxima |
 | 7 | Fila e painel do profissional | ⬜ |
 | 8 | Prontuário e evolução | ⬜ |
 | 9 | Medicamentos | ⬜ |
@@ -22,7 +22,7 @@ testes que passam e as pendências.
 | 12 | Auditoria e indicadores | ⬜ |
 | 13 | Fechamento | ⬜ |
 
-**Testes:** `php artisan test` → **170 passando, 879 asserções** (~155 s, MySQL).
+**Testes:** `php artisan test` → **198 passando, 1265 asserções** (~190 s, MySQL).
 
 ---
 
@@ -450,19 +450,98 @@ seeder estourava violação de constraint, porque `impressa_por` é `NOT NULL` c
 ---
 
 
-## ⬜ Fase 5 — Atendimento e máquina de estados
+## ✅ Fase 5 — Atendimento e máquina de estados (2026-08-18)
+
+### Entregue
+
+**Domínio**
+
+- `AbrirAtendimentoAction` — numeração sequencial (RF-21), guarda de RN-07 e a primeira
+  linha do histórico. A verificação em PHP **não é o controle**: quando a corrida escapa
+  dela, a Action traduz a violação de `uk_atendimento_ativo` em
+  `AtendimentoAtivoExistenteException`.
+- `AlterarStatusAction` (doc §6.3) — a **única** porta de escrita de `atendimento.status`.
+  Valida RN-13, acrescenta ao histórico sem sobrescrever (RN-15), calcula
+  `permanencia_segundos` (RF-39), grava `primeiro_atendimento_em` uma única vez, encerra
+  os itens de fila ao terminalizar e emite `StatusAtendimentoAlterado` (RF-38).
+- `FinalizarAtendimentoAction` — RN-14, delegando à `AlterarStatusAction` de propósito:
+  caminho próprio de escrita escaparia das garantias de RN-13 e RN-15 justamente no
+  momento mais importante do episódio.
+- `GeradorNumeroAtendimentoService` com `lockForUpdate` + retentativa no índice único.
+- Exceções nomeadas: `TransicaoInvalidaException` (que lista as transições legais na
+  mensagem), `AtendimentoAtivoExistenteException` (que carrega o atendimento existente) e
+  `DesfechoObrigatorioException`.
+
+**Interface**
+
+- `AtendimentoController` com index (RF-18), show (RF-22), store, alterarStatus e
+  finalizar.
+- `Atendimentos/Index` separando em andamento de finalizados, com o formulário de
+  abertura visível só quando não há episódio aberto.
+- `Atendimentos/Show` com a linha do tempo lida direto do histórico append-only, e
+  **apenas as transições legais oferecidas** — a máquina de estados é a fonte, e a tela
+  não oferece o que a Action recusaria.
+- `BadgePrioridade` (RNF-15): cor + rótulo + ícone.
+
+### Definition of done
+
+| Critério | Estado |
+|---|---|
+| Todas as transições da doc §6.2: permitidas passam, demais lançam | ✅ 81 combinações, 26 legais e 55 recusadas |
+| Alcançabilidade: todo estado não terminal alcança `FINALIZADO` | ✅ busca em largura |
+| Concorrência: duas aberturas simultâneas | ⚠️ ver ressalva abaixo |
+
+**Ressalva honesta sobre o teste de concorrência.** Sob `RefreshDatabase` tudo roda numa
+transação, então execução paralela real não é reproduzível. O que os testes provam é:
+(a) a Action **traduz** a violação de `uk_atendimento_ativo` para a exceção de domínio
+quando a corrida escapa da verificação — simulado com um concorrente inserido entre a
+verificação e a escrita; e (b) que o **índice recusa** o segundo ativo, provado em
+`EsquemaTest` escrevendo direto no banco. Juntos cobrem o requisito; separadamente,
+nenhum dos dois cobriria.
+
+### Testes
+
+- `MaquinaEstadosTest` (7, 173 asserções) — sem banco, em milissegundos. Confere o enum
+  contra a tabela da doc §6.2 linha por linha, percorre as 81 combinações, prova
+  terminalidade, ausência de deadlock, cancelamento a partir de qualquer estado, e que a
+  auto-transição de reclassificação é a única do sistema.
+- `AtendimentoTest` (21, 213 asserções) — abertura, numeração, RN-07 nas três variações,
+  as 26 transições legais e as 55 ilegais pela Action, histórico, permanência,
+  finalização, `ativo_key`, auditoria, RN-12 e as duas telas.
+
+### Erros corrigidos
+
+1. **`permanencia_segundos` negativo derrubava a transição** (D-35). A coluna é
+   `INT UNSIGNED` e o MySQL recusa o `INSERT` inteiro. Acontece com desvio de relógio ou
+   registro retroativo. Truncado em zero: perder a transição seria muito pior — o
+   paciente ficaria preso no estado anterior.
+2. **A numeração "por ano e unidade" do prompt é incompatível com o schema** (D-34):
+   `uk_atendimento_numero` é global e o formato `2026-000148` não tem componente de
+   unidade. Passou a ser sequencial por ano, global entre unidades. **Ver pendências.**
+
+### Pendências
+
+1. **A numeração diverge da letra do prompt** (D-34). Se a numeração por unidade for
+   realmente desejada, exige trocar `UNIQUE (numero)` por `UNIQUE (unidade_id, numero)` —
+   mudança de esquema que torna o número ambíguo fora do contexto da unidade.
+   **Requer decisão.**
+2. `profissional_responsavel_id` ainda não é preenchido por nenhum fluxo — quem atribui é
+   a `AtribuirProfissionalAction` da Fase 7. Até lá, a supervisão do RN-12 é o que
+   sustenta a alteração de status.
+
+---
+
+## ⬜ Fase 6 — Triagem e classificação de risco
 
 Escopo previsto:
 
-- [ ] `AbrirAtendimentoAction` com numeração sequencial por ano e unidade
-      (`2026-000148`), gerada de forma segura sob concorrência
-- [ ] `AlterarStatusAction` (doc §6.3): valida contra `podeTransitarPara()`, calcula
-      `permanencia_segundos` e emite `StatusAtendimentoAlterado`
-- [ ] `FinalizarAtendimentoAction` exigindo desfecho (RN-14)
-- [ ] Área de Atendimentos do paciente, separando finalizados e em andamento (RF-18)
-- [ ] Linha do tempo consolidada do atendimento (RF-22)
-- [ ] Teste de **todas** as transições da doc §6.2 — as permitidas passam, as demais
-      lançam `TransicaoInvalidaException`
-- [ ] Teste de alcançabilidade: todo estado não terminal alcança `FINALIZADO`, sem deadlock
-- [ ] Teste de concorrência: duas aberturas simultâneas para o mesmo paciente — uma passa,
-      a outra recebe violação de índice único (o `uk_atendimento_ativo` da Fase 1)
+- [ ] `RealizarTriagemAction` e `ReclassificarRiscoAction` (doc §7.5)
+- [ ] Sinais vitais em `sinal_vital`, com os `CHECK` de faixa ativos (D-06)
+- [ ] Reclassificação **encadeada** por `triagem_anterior_id`; a anterior permanece intacta
+- [ ] `AvaliadorEsperaService` (doc §7.3.1) — classifica a criticidade da espera **sem
+      reordenar a fila**. Envelhecimento automático é proibido
+- [ ] Reimpressão de pulseira na reclassificação (RN-09) e fluxo de emergência no
+      vermelho (RN-11)
+- [ ] Teste: reclassificar de verde para laranja **preserva `entrou_em`**
+- [ ] Teste: vermelho vai direto a `EM_ATENDIMENTO`, sem fila
+- [ ] Teste: a triagem anterior continua legível após a reclassificação

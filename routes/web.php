@@ -12,6 +12,7 @@ Route::get('dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 require __DIR__.'/pacientes.php';
+require __DIR__.'/atendimentos.php';
 require __DIR__.'/pulseira.php';
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';
