@@ -20,7 +20,8 @@ const enviar = () => form.post(route('quebra-sigilo.store'));
                     Acesso excepcional ao prontuário
                 </h1>
                 <p class="mt-3">
-                    Você não possui vínculo assistencial com {{ paciente.nome }}. O acesso completo exige justificativa e será registrado na auditoria.
+                    Você não possui vínculo assistencial com {{ paciente.nome }}. O acesso completo exige justificativa e será registrado na
+                    auditoria.
                 </p>
 
                 <form class="mt-5 space-y-3" @submit.prevent="enviar">
@@ -35,7 +36,11 @@ const enviar = () => form.post(route('quebra-sigilo.store'));
                         class="w-full rounded-md border border-amber-600 bg-white p-3 text-neutral-950 focus:outline-none focus:ring-2 focus:ring-amber-800"
                     />
                     <InputError :message="form.errors.justificativa" />
-                    <button type="submit" :disabled="form.processing" class="rounded-md bg-amber-900 px-4 py-2 font-semibold text-white focus:outline-none focus:ring-2 focus:ring-amber-950 focus:ring-offset-2 disabled:opacity-50">
+                    <button
+                        type="submit"
+                        :disabled="form.processing"
+                        class="rounded-md bg-amber-900 px-4 py-2 font-semibold text-white focus:outline-none focus:ring-2 focus:ring-amber-950 focus:ring-offset-2 disabled:opacity-50"
+                    >
                         Justificar e acessar
                     </button>
                 </form>

@@ -5,7 +5,7 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, Sid
 import { usePermissoes } from '@/composables/usePermissoes';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/vue3';
-import { ChartNoAxesCombined, ClipboardList, FlaskConical, LayoutGrid, ListOrdered, Pill, ScrollText, ShieldCheck, Stethoscope, Users } from 'lucide-vue-next';
+import { ChartNoAxesCombined, FlaskConical, LayoutGrid, ListOrdered, Pill, ShieldCheck, Users } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from './AppLogo.vue';
 
@@ -18,19 +18,19 @@ const { podeAlguma } = usePermissoes();
  * do servidor. Um menu limpo evita que a recepcionista passe o turno clicando em telas
  * que vão devolver 403.
  *
- * As rotas ainda não existem: cada fase seguinte acende o seu item.
+ * **Só entra aqui o que tem rota de índice.** Triagem, prontuário e medicamentos de um
+ * paciente são sempre de um atendimento concreto: chega-se a eles pela fila ou pela
+ * ficha, não por um item de menu. Um link que devolve 404 é pior que a ausência dele —
+ * ensina o usuário a desconfiar do menu inteiro.
  */
 const itensNavegacao: NavItem[] = [
     { title: 'Painel', href: '/dashboard', icon: LayoutGrid },
     { title: 'Pacientes', href: '/pacientes', icon: Users, permissoes: ['paciente.ler'] },
-    { title: 'Triagem', href: '/triagem', icon: Stethoscope, permissoes: ['triagem.classificar', 'triagem.ler'] },
     { title: 'Fila', href: '/fila', icon: ListOrdered, permissoes: ['fila.ler'] },
-    { title: 'Prontuário', href: '/prontuario', icon: ScrollText, permissoes: ['prontuario.ler_nota_medica', 'prontuario.ler_evolucao_enfermagem'] },
     { title: 'Medicamentos', href: '/medicamentos', icon: Pill, permissoes: ['prescricao.ler', 'medicamento.administrar'] },
     { title: 'Exames', href: '/exames', icon: FlaskConical, permissoes: ['exame.ler_solicitacao', 'exame.executar'] },
     { title: 'Auditoria', href: '/auditoria', icon: ShieldCheck, permissoes: ['auditoria.ler'] },
     { title: 'Indicadores', href: '/indicadores', icon: ChartNoAxesCombined, permissoes: ['auditoria.ler'] },
-    { title: 'Usuários', href: '/usuarios', icon: ClipboardList, permissoes: ['usuario.gerenciar'] },
 ];
 
 const itensVisiveis = computed(() => itensNavegacao.filter((item) => !item.permissoes || podeAlguma(item.permissoes)));
