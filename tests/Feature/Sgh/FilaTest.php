@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Actions\Atendimento\AlterarStatusAction;
 use App\Actions\Fila\AtribuirProfissionalAction;
 use App\Actions\Fila\TransferirFilaAction;
+use App\Enums\StatusAtendimento;
 use App\Exceptions\FilaInvalidaException;
 use App\Models\Atendimento;
 use App\Models\FilaItem;
@@ -383,4 +385,55 @@ it('nega atribuicao a quem nao tem fila.atribuir', function () {
         ->assertForbidden();
 
     expect($item->fresh()->profissional_id)->toBeNull();
+});
+
+/*
+|--------------------------------------------------------------------------
+| A fila acompanha o ciclo de vida do atendimento
+|--------------------------------------------------------------------------
+*/
+
+it('tira o paciente da espera quando o atendimento comeca, marcando chamado_em', function () {
+    $item = enfileirar($this->unidade, $this->medico, V_VERDE, 20, 'Paciente Chamado', $this->autor);
+    $atendimento = Atendimento::find($item->atendimento_id);
+
+    expect($item->situacao)->toBe('AGUARDANDO')
+        ->and($item->chamado_em)->toBeNull();
+
+    app(AlterarStatusAction::class)->execute(
+        atendimento: $atendimento,
+        novoStatus: StatusAtendimento::EmAtendimento,
+        autor: $this->autor,
+    );
+
+    /*
+     * Sem esta sincronizacao o paciente seguia listado na fila enquanto ja estava sendo
+     * atendido, e `chamado_em` ficava nulo -- cegando a duracao real do atendimento e a
+     * aderencia ao tempo-alvo do Manchester.
+     */
+    $item->refresh();
+
+    expect($item->situacao)->toBe('EM_ATENDIMENTO')
+        ->and($item->chamado_em)->not->toBeNull();
+
+    $naFila = app(PainelFilaService::class)->fila($this->medico->user_id);
+
+    expect(collect($naFila)->pluck('fila_item_id'))->not->toContain($item->id);
+});
+
+it('nao reescreve chamado_em nas idas e vindas entre exame e atendimento', function () {
+    $item = enfileirar($this->unidade, $this->medico, V_AMARELO, 15, 'Paciente Exame', $this->autor);
+    $atendimento = Atendimento::find($item->atendimento_id);
+    $acao = app(AlterarStatusAction::class);
+
+    $acao->execute($atendimento, StatusAtendimento::EmAtendimento, $this->autor);
+    $chamadoOriginal = $item->fresh()->chamado_em;
+
+    $acao->execute($atendimento->fresh(), StatusAtendimento::AguardandoExame, $this->autor);
+    $acao->execute($atendimento->fresh(), StatusAtendimento::EmExame, $this->autor);
+    $acao->execute($atendimento->fresh(), StatusAtendimento::EmAtendimento, $this->autor);
+
+    // O paciente foi chamado uma vez. O exame nao o devolve para a fila de espera.
+    expect($item->fresh()->chamado_em?->format('Y-m-d H:i:s'))
+        ->toBe($chamadoOriginal?->format('Y-m-d H:i:s'));
 });

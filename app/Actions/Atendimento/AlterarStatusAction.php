@@ -94,6 +94,26 @@ final class AlterarStatusAction
                 $atendimento->primeiro_atendimento_em = now();
             }
 
+            /*
+             * O paciente deixou de esperar: quem sai de `AGUARDANDO_ATENDIMENTO` para
+             * qualquer estado não terminal foi chamado.
+             *
+             * Sem isto o `fila_item` ficava em `AGUARDANDO` para sempre — o paciente
+             * continuava listado na fila enquanto já estava sendo atendido, e a carga
+             * ponderada do profissional (doc §7.4) contava um paciente que ele já pegou.
+             * Pior: `chamado_em` permanecia nulo, e é dele que saem a duração real do
+             * atendimento (`EstimadorEsperaService`) e a aderência ao tempo-alvo do
+             * Manchester (`IndicadoresService`) — os dois indicadores ficavam cegos.
+             *
+             * A máquina de estados não tem volta para `AGUARDANDO_ATENDIMENTO`, então
+             * marcar aqui acontece uma vez só e `chamado_em` não é reescrito.
+             */
+            if (! $novoStatus->ehTerminal() && $atual === StatusAtendimento::AguardandoAtendimento) {
+                $atendimento->filaItens()
+                    ->whereIn('situacao', ['AGUARDANDO', 'CHAMADO'])
+                    ->update(['situacao' => 'EM_ATENDIMENTO', 'chamado_em' => now()]);
+            }
+
             if ($novoStatus->ehTerminal()) {
                 $atendimento->finalizado_em = now();
 
