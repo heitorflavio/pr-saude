@@ -19,7 +19,6 @@ use App\Models\SinalVital;
 use App\Models\Unidade;
 use App\Services\Fila\AvaliadorEsperaService;
 use Database\Seeders\ClassificacaoRiscoSeeder;
-use Database\Seeders\RbacSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -34,8 +33,6 @@ const VERDE = 4;
 const AZUL = 5;
 
 beforeEach(function () {
-    $this->seed(RbacSeeder::class);
-    $this->seed(ClassificacaoRiscoSeeder::class);
     app(PermissionRegistrar::class)->forgetCachedPermissions();
 
     $this->unidade = Unidade::factory()->create();

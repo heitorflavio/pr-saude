@@ -17,13 +17,11 @@ use App\Models\User;
 use App\Rules\Cpf;
 use App\Services\Pulseira\TokenPulseiraService;
 use Database\Factories\Support\GeradorCpf;
-use Database\Seeders\RbacSeeder;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\PermissionRegistrar;
 
 beforeEach(function () {
-    $this->seed(RbacSeeder::class);
     app(PermissionRegistrar::class)->forgetCachedPermissions();
 
     $this->recepcao = User::factory()->profissional()->create();

@@ -17,8 +17,6 @@ use App\Models\Paciente;
 use App\Models\Profissional;
 use App\Models\ProfissionalDisponibilidade;
 use App\Models\Unidade;
-use Database\Seeders\ClassificacaoRiscoSeeder;
-use Database\Seeders\RbacSeeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -26,8 +24,6 @@ use Illuminate\Support\Str;
 use Spatie\Permission\PermissionRegistrar;
 
 beforeEach(function () {
-    $this->seed(RbacSeeder::class);
-    $this->seed(ClassificacaoRiscoSeeder::class);
     app(PermissionRegistrar::class)->forgetCachedPermissions();
 
     $this->unidade = Unidade::factory()->create();

@@ -22,7 +22,7 @@ testes que passam e as pendências.
 | 12 | Auditoria e indicadores | ⬜ |
 | 13 | Fechamento | ⬜ |
 
-**Testes:** `php artisan test` → **216 passando, 1350 asserções** (~220 s, MySQL).
+**Testes:** `php artisan test` → **216 passando, 1350 asserções** (~24 s, MySQL).
 
 ---
 

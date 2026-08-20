@@ -7,12 +7,10 @@ use App\Models\AuditoriaLog;
 use App\Models\Paciente;
 use App\Models\User;
 use App\Services\Auditoria\AuditoriaService;
-use Database\Seeders\RbacSeeder;
 use Illuminate\Support\Facades\Auth;
 use Spatie\Permission\PermissionRegistrar;
 
 beforeEach(function () {
-    $this->seed(RbacSeeder::class);
     app(PermissionRegistrar::class)->forgetCachedPermissions();
 
     $this->auditoria = app(AuditoriaService::class);

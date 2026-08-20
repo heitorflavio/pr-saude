@@ -842,3 +842,27 @@ MySQL devolvesse primeiro, e a ordem poderia mudar entre duas leituras da mesma 
 `$timestamps = false`, então a mudança não afeta `created_at`/`updated_at` de mais
 ninguém. Colunas `DATETIME(0)` do mesmo model recebem o valor com fração e o MySQL
 arredonda, sem erro.
+
+---
+
+## D-37 · Os catálogos são semeados uma vez por execução, não por teste
+
+**Origem:** custo crescente da suíte · **Status:** ✅ aplicada · **2026-08-18**
+
+Cada teste chamava `$this->seed(RbacSeeder::class)` no `beforeEach` — 8 roles, 42
+permissions e as associações entre elas, cerca de **340 inserts por teste**. Com 216
+testes, a suíte passou de 13 s (Fase 1) para 220 s (Fase 6), e faltavam sete fases.
+
+**Decisão.** `CatalogoSeeder` — RBAC mais os cinco catálogos de domínio — declarado na
+`Tests\TestCase` via `$seed` e `$seeder`.
+
+**Por que isso funciona sem vazar estado entre testes.** O `RefreshDatabase` roda
+`migrate:fresh --seed` **uma única vez por execução** (guardado por
+`RefreshDatabaseState::$migrated`) e só depois abre a transação de cada teste. Os
+catálogos ficam abaixo do ponto de rollback: visíveis a todos, recriados por nenhum. O
+que cada teste escreve continua sendo revertido normalmente.
+
+**`CatalogoSeeder` e não `DatabaseSeeder`:** o segundo cria a conta administrativa, e um
+teste que conta usuários não deve depender de quem o seeder de ambiente criou. A
+separação também deixa explícito o que é "carga sem a qual o sistema não funciona" e o
+que é "conta para conseguir entrar".

@@ -14,14 +14,10 @@ use App\Models\Profissional;
 use App\Models\ProfissionalDisponibilidade;
 use App\Models\User;
 use App\Services\Pulseira\GerarPulseiraService;
-use Database\Seeders\ClassificacaoRiscoSeeder;
-use Database\Seeders\RbacSeeder;
 use Illuminate\Support\Facades\Event;
 use Spatie\Permission\PermissionRegistrar;
 
 beforeEach(function () {
-    $this->seed(RbacSeeder::class);
-    $this->seed(ClassificacaoRiscoSeeder::class);
     app(PermissionRegistrar::class)->forgetCachedPermissions();
 });
 

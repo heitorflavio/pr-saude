@@ -15,7 +15,6 @@ use App\Models\RegistroClinico;
 use App\Models\SinalVital;
 use App\Models\Unidade;
 use App\Models\User;
-use Database\Seeders\ClassificacaoRiscoSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -36,10 +35,6 @@ use Illuminate\Support\Str;
  * Por isso todo teste aqui escreve DIRETO no banco quando possivel: o que esta sendo
  * verificado e o banco, nao a aplicacao.
  */
-beforeEach(function () {
-    $this->seed(ClassificacaoRiscoSeeder::class);
-});
-
 /** Confirma que a violacao veio da constraint esperada, e nao de outro erro qualquer. */
 function esperarViolacao(Closure $escrita, string $constraint): void
 {

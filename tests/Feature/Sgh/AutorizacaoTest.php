@@ -19,7 +19,6 @@ use Spatie\Permission\PermissionRegistrar;
  * matriz INTEIRA -- o que ela tem e, principalmente, tudo o que ela não tem.
  */
 beforeEach(function () {
-    $this->seed(RbacSeeder::class);
     app(PermissionRegistrar::class)->forgetCachedPermissions();
 
     $this->matriz = (new RbacSeeder)->matriz();

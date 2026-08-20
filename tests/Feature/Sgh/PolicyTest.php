@@ -13,8 +13,6 @@ use App\Models\Prescricao;
 use App\Models\Profissional;
 use App\Models\ProfissionalDisponibilidade;
 use App\Models\RegistroClinico;
-use Database\Seeders\ClassificacaoRiscoSeeder;
-use Database\Seeders\RbacSeeder;
 use Illuminate\Support\Facades\Gate;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -24,8 +22,6 @@ use Spatie\Permission\PermissionRegistrar;
  * pode, NESTE registro?". Permission sozinha nunca basta para dado clínico.
  */
 beforeEach(function () {
-    $this->seed(RbacSeeder::class);
-    $this->seed(ClassificacaoRiscoSeeder::class);
     app(PermissionRegistrar::class)->forgetCachedPermissions();
 });
 
