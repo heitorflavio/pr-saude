@@ -836,3 +836,41 @@ asserções**; build Vite e lint verdes.
 
 1. O segundo fator alternativo por SMS (M-10) é opcional e depende da contratação de um
    provedor; `AcessoPortalRealizado` também aguarda esse canal para a notificação M-8.
+
+---
+
+## ✅ Fase 12 — Auditoria e indicadores (2026-08-20)
+
+**RF atendidos:** RF-80 a RF-82 · **RN:** RN-28 · **RNF-11**
+
+### Entregue
+
+- Auditoria de leitura nas rotas e serviços clínicos, com usuário, snapshot de perfil,
+  paciente, atendimento, IP, user-agent e horário do servidor.
+- Tela pesquisável da trilha dos últimos 90 dias responde quem acessou cada paciente e
+  usa a coluna inicial do índice `ix_audit_paciente (paciente_id, criado_em)`.
+- Mascaramento recursivo remove `password`, `senha`, `token_pulseira`, `cpf` e `cns` antes
+  da persistência; o log mantém apenas o contexto necessário à investigação.
+- Fluxo completo de quebra de sigilo: tela de alerta, justificativa entre 10 e 1000
+  caracteres, autorização de uso único vinculada ao paciente e destino, e auditoria.
+- `IndicadoresService` calcula os nove indicadores da doc §7.6 por período e unidade:
+  porta–triagem, porta–atendimento, aderência ao alvo, permanência, distribuição por cor,
+  reclassificação, evasão, produtividade por profissional e tempo em cada status.
+- Tela gerencial apresenta cartões e tabelas acessíveis, amostras e estados “Sem dados”.
+  Não foi produzido gráfico porque a skill `dataviz` solicitada pelo plano não estava
+  disponível nesta sessão.
+
+### Definition of done
+
+| Critério | Estado |
+|---|---|
+| Leitura de prontuário gera auditoria | ✅ |
+| Acesso sem vínculo e sem justificativa é recusado | ✅ |
+| Quebra justificada é de uso único e auditada | ✅ |
+| Credenciais e identificadores sensíveis são mascarados | ✅ |
+| Nove indicadores usam uma coorte temporal consistente | ✅ |
+
+### Testes
+
+`IndicadoresTest` acrescenta **4 testes e 45 asserções**. Suíte completa: **317 testes,
+1727 asserções**; build Vite e lint verdes.

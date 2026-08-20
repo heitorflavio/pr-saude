@@ -15,6 +15,7 @@ use App\Services\Auditoria\AuditoriaService;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -45,7 +46,13 @@ final class ExigirVinculoAssistencial
             return $next($request);
         }
 
+        $pendente = $request->session()->pull('quebra_sigilo.pendente');
         $justificativa = trim((string) $request->input('justificativa_quebra_sigilo', ''));
+        if (is_array($pendente)
+            && ($pendente['paciente_id'] ?? null) === $paciente->user_id
+            && ($pendente['destino'] ?? null) === $request->fullUrl()) {
+            $justificativa = trim((string) ($pendente['justificativa'] ?? ''));
+        }
 
         if ($justificativa === '') {
             $this->auditoria->registrar(
@@ -55,7 +62,14 @@ final class ExigirVinculoAssistencial
                 entidadeId: $paciente->user_id,
             );
 
-            abort(403, 'Você não possui vínculo assistencial com este paciente. Informe uma justificativa para acessar (RN-28).');
+            $request->session()->put('quebra_sigilo.solicitacao', [
+                'destino' => $request->fullUrl(),
+                'paciente_id' => $paciente->user_id,
+            ]);
+
+            return Inertia::render('Prontuario/QuebraSigilo', [
+                'paciente' => ['nome' => $paciente->nomeExibicao()],
+            ])->toResponse($request)->setStatusCode(403);
         }
 
         if (Gate::forUser($usuario)->denies('quebrarSigilo', $paciente)) {

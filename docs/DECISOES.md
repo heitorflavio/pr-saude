@@ -1139,3 +1139,34 @@ origem, que é o contrato estável para um listener de SMS, push ou mensageria h
 O fluxo obrigatório usa o fator forte já disponível — o token da pulseira. O acesso
 alternativo por SMS (M-10) permanece desabilitado até que um canal externo seja escolhido;
 não se simula envio nem se expõe código de uso único em log ou interface.
+
+---
+
+## D-53 · Indicadores usam o atendimento admitido no período como coorte
+
+**Origem:** definição operacional da doc §7.6 · **Status:** ✅ aplicada · **2026-08-20**
+
+A lista de indicadores define numeradores e fontes, mas não explicita a coorte temporal.
+Misturar atendimentos admitidos antes do filtro com os admitidos durante o filtro faria
+os nove números usarem populações diferentes e impediria comparação entre períodos.
+
+**Decisão.** A coorte é formada por atendimentos cuja `admitido_em` está no período e,
+quando informado, na unidade escolhida. Triagens, filas e históricos são unidos a essa
+mesma coorte. A produtividade é a exceção semântica: conta conclusões ocorridas no
+período e divide pelas horas de plantão sobrepostas ao período, pois essa é a definição
+do indicador e evita atribuir produção ao dia de admissão de um episódio longo.
+
+---
+
+## D-54 · Quebra de sigilo autoriza somente a requisição que a originou
+
+**Origem:** RN-28 · **Status:** ✅ aplicada · **2026-08-20**
+
+Uma autorização genérica em sessão criaria uma janela na qual o profissional poderia
+navegar por outros prontuários sem nova justificativa. Incluir o motivo na URL, por outro
+lado, o copiaria para histórico, proxies e logs HTTP.
+
+**Decisão.** O middleware guarda em sessão o paciente e o destino exatos, apresenta a
+tela de justificativa e, após o POST, aceita o motivo uma única vez somente no mesmo
+destino. A autorização é consumida na releitura e tanto a quebra quanto a leitura ficam
+registradas; nenhuma justificativa circula na URL.

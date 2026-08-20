@@ -5,7 +5,7 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, Sid
 import { usePermissoes } from '@/composables/usePermissoes';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/vue3';
-import { ClipboardList, FlaskConical, LayoutGrid, ListOrdered, Pill, ScrollText, ShieldCheck, Stethoscope, Users } from 'lucide-vue-next';
+import { ChartNoAxesCombined, ClipboardList, FlaskConical, LayoutGrid, ListOrdered, Pill, ScrollText, ShieldCheck, Stethoscope, Users } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from './AppLogo.vue';
 
@@ -29,6 +29,7 @@ const itensNavegacao: NavItem[] = [
     { title: 'Medicamentos', href: '/medicamentos', icon: Pill, permissoes: ['prescricao.ler', 'medicamento.administrar'] },
     { title: 'Exames', href: '/exames', icon: FlaskConical, permissoes: ['exame.ler_solicitacao', 'exame.executar'] },
     { title: 'Auditoria', href: '/auditoria', icon: ShieldCheck, permissoes: ['auditoria.ler'] },
+    { title: 'Indicadores', href: '/indicadores', icon: ChartNoAxesCombined, permissoes: ['auditoria.ler'] },
     { title: 'Usuários', href: '/usuarios', icon: ClipboardList, permissoes: ['usuario.gerenciar'] },
 ];
 
