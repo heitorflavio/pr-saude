@@ -1049,3 +1049,48 @@ plano proíbe divergir do `schema.sql` silenciosamente.
 em linhas identificadas de `administracao_medicamento.observacao`. Preserva a evidência
 sem inventar colunas. Se o hospital precisar consultar lote/validade de forma agregada
 (por exemplo, recall), isso exige evolução explícita do modelo, não texto livre.
+
+---
+
+## D-47 · Faixas críticas exigem uma tabela além do `schema.sql`
+
+**Origem:** conflito entre fontes normativas · **Status:** ✅ aplicada · **2026-08-20**
+
+O `schema.sql` não contém onde parametrizar limites críticos. Já o plano da Fase 10 é
+explícito: `AvaliadorResultadoService` com faixas em **tabela parametrizável**, nunca em
+constante. O exemplo da própria doc §11.2 alerta que a constante serve só para ilustrar.
+
+**Decisão.** Foi criada `exame_faixa_critica`, com analito, unidade, limites inferior e
+superior, ativo e índices, mais cinco valores iniciais semeados. Neste ponto o plano da
+fase vence o DDL inicial: o sistema passa a ter 31 tabelas de domínio. Uma alteração de
+protocolo laboratorial agora é dado administrável, não deploy de código.
+
+---
+
+## D-48 · A liberação médica é o registro de ciência do valor crítico
+
+**Origem:** lacuna do schema · **Status:** ✅ aplicada · **2026-08-20**
+
+RN-25 exige ciência médica antes de expor valor crítico, mas o banco não possui campos
+`ciente_por`/`ciente_em`. Possui apenas `liberado_por`/`liberado_em`.
+
+**Decisão.** Para resultado crítico, `LiberarResultadoAction` exige profissional de
+categoria `MEDICO`; o ato explícito de liberar, com autor e hora, é a ciência. O
+laboratório continua autorizado a liberar resultado não crítico, como determina a
+matriz RBAC. Se for necessário distinguir “vi” de “autorizei o portal”, o schema deve
+ganhar um evento próprio de ciência, e os dois atos deixarão de ser sinônimos.
+
+---
+
+## D-49 · Solicitação pendente cria vínculo funcional do laboratório
+
+**Origem:** integração RN-28 × fila laboratorial · **Status:** ✅ aplicada · **2026-08-20**
+
+O laboratório vê a fila por permissão, mas o middleware contextual exige vínculo com o
+paciente. Antes de alguém coletar ou executar, nenhum profissional do laboratório está
+individualmente ligado à solicitação; cada item da própria fila devolveria 403.
+
+**Decisão.** Para usuário da categoria `LABORATORIO`, uma solicitação não cancelada
+constitui vínculo funcional com o paciente. O acesso continua restrito ao contexto do
+exame, auditado, e desaparece para solicitação cancelada. Para os demais perfis, seguem
+valendo as origens individuais de vínculo já existentes.

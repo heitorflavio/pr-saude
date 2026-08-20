@@ -17,6 +17,7 @@ require __DIR__.'/triagem.php';
 require __DIR__.'/fila.php';
 require __DIR__.'/prontuario.php';
 require __DIR__.'/medicamentos.php';
+require __DIR__.'/exames.php';
 require __DIR__.'/pulseira.php';
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';

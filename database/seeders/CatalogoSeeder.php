@@ -25,6 +25,7 @@ class CatalogoSeeder extends Seeder
             QueixaSeeder::class,
             MedicamentoSeeder::class,
             ExameSeeder::class,
+            ExameFaixaCriticaSeeder::class,
         ]);
     }
 }

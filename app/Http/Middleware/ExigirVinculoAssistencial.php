@@ -6,6 +6,9 @@ namespace App\Http\Middleware;
 
 use App\Models\Aprazamento;
 use App\Models\Atendimento;
+use App\Models\ExameAnexo;
+use App\Models\ExameResultado;
+use App\Models\ExameSolicitacao;
 use App\Models\Paciente;
 use App\Models\Prescricao;
 use App\Services\Auditoria\AuditoriaService;
@@ -111,6 +114,21 @@ final class ExigirVinculoAssistencial
         $aprazamento = $request->route('aprazamento');
         if ($aprazamento instanceof Aprazamento) {
             return $aprazamento->prescricaoItem->prescricao->atendimento->paciente;
+        }
+
+        $solicitacao = $request->route('solicitacao');
+        if ($solicitacao instanceof ExameSolicitacao) {
+            return $solicitacao->atendimento->paciente;
+        }
+
+        $resultado = $request->route('resultado');
+        if ($resultado instanceof ExameResultado) {
+            return $resultado->solicitacao->atendimento->paciente;
+        }
+
+        $anexo = $request->route('anexo');
+        if ($anexo instanceof ExameAnexo) {
+            return $anexo->resultado->solicitacao->atendimento->paciente;
         }
 
         return null;

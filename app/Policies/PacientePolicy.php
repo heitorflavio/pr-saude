@@ -75,12 +75,24 @@ final class PacientePolicy
             return false;
         }
 
+        // RF-63/RN-28: a solicitação pendente é o vínculo funcional do laboratório.
+        // Sem isso, a própria fila oferecida ao perfil laboratório levaria a 403.
+        if ($user->profissional?->categoria === 'LABORATORIO'
+            && $paciente->atendimentos()->whereHas('exameSolicitacoes', fn ($e) => $e
+                ->whereNotIn('situacao', ['CANCELADO']))->exists()) {
+            return true;
+        }
+
         return $paciente->atendimentos()
             ->where(function ($q) use ($profissionalId) {
                 $q->where('profissional_responsavel_id', $profissionalId)
                     ->orWhereHas('filaItens', fn ($f) => $f->where('profissional_id', $profissionalId))
                     ->orWhereHas('registrosClinicos', fn ($r) => $r->where('autor_id', $profissionalId))
-                    ->orWhereHas('prescricoes', fn ($p) => $p->where('prescrito_por', $profissionalId));
+                    ->orWhereHas('prescricoes', fn ($p) => $p->where('prescrito_por', $profissionalId))
+                    ->orWhereHas('exameSolicitacoes', fn ($e) => $e
+                        ->where('solicitado_por', $profissionalId)
+                        ->orWhere('coletado_por', $profissionalId)
+                        ->orWhereHas('resultado', fn ($r) => $r->where('executado_por', $profissionalId)));
             })
             ->exists();
     }

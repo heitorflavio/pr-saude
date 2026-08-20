@@ -17,12 +17,12 @@ testes que passam e as pendências.
 | 7 | Fila e painel do profissional | ✅ |
 | 8 | Prontuário e evolução | ✅ |
 | 9 | Medicamentos | ✅ |
-| 10 | Clínica e exames | ⬜ próxima |
-| 11 | Portal do paciente | ⬜ |
+| 10 | Clínica e exames | ✅ |
+| 11 | Portal do paciente | ⬜ próxima |
 | 12 | Auditoria e indicadores | ⬜ |
 | 13 | Fechamento | ⬜ |
 
-**Testes:** `php artisan test` → **282 passando, 1549 asserções** (~29 s, MySQL).
+**Testes:** `php artisan test` → **294 passando, 1606 asserções** (~31 s, MySQL).
 
 ---
 
@@ -744,3 +744,49 @@ D-40 a D-44 em `docs/DECISOES.md`. Os dois que mais importam:
 
 1. Os eventos de alergia e divergência estão prontos para listeners de mensageria; o
    canal externo (push, SMS ou alerta interno) não é definido no documento.
+
+---
+
+## ✅ Fase 10 — Clínica e exames (2026-08-20)
+
+**RF atendidos:** RF-62 a RF-69 · **RN:** RN-24 e RN-25 · **UC-11/UC-12/UC-13**
+
+### Entregue
+
+- `SituacaoExame` e `AlterarSituacaoExameAction`: a máquina completa impede saltos em
+  `SOLICITADO → COLETADO → EM_EXECUCAO → CONCLUIDO → LIBERADO`; cancelado é terminal.
+- `SolicitarExameAction`, `RegistrarResultadoAction` e `LiberarResultadoAction`, todas
+  transacionais, auditadas e com eventos de domínio.
+- `AvaliadorResultadoService` consulta `exame_faixa_critica`, nova tabela
+  parametrizável sem limites clínicos em constante de código (D-47).
+- Resultado estruturado por analito; unidade, referência mínima/máxima/textual e
+  sinalização ficam congeladas na linha do resultado (doc §11.3).
+- Valor crítico agrega em `possui_valor_critico`, emite `ValorCriticoDetectado` e só é
+  liberado por médico; a liberação é o registro explícito de ciência (D-48, RN-25).
+- Anexos PDF/imagem ficam em `storage/app/private`, com nome opaco e SHA-256. O arquivo
+  só é entregue por rota autenticada, com vínculo, Policy e verificação de hash.
+- Fila do laboratório usa o scope existente: urgente primeiro e depois ordem de
+  solicitação, atualizada a cada 10 s.
+- A solicitação pendente passou a constituir vínculo funcional do perfil laboratório
+  com aquele paciente (D-49); sem isso a própria fila levaria a 403.
+
+### Definition of done
+
+| Critério | Estado |
+|---|---|
+| Banco recusa visibilidade sem autor/data de liberação | ✅ |
+| Valor crítico não é liberado pelo laboratório | ✅ |
+| Médico registra ciência e libera valor crítico | ✅ |
+| Anexo fica fora do `public/` e sem URL direta | ✅ |
+| SHA-256 é conferido antes do download | ✅ |
+| Urgentes aparecem antes das rotinas | ✅ |
+
+### Testes
+
+`ExameTest`: **12 testes e 57 asserções**. Suíte completa: **294 testes, 1606
+asserções**; build Vite e lint verdes.
+
+### Pendências
+
+1. `ValorCriticoDetectado` é o ponto de integração para a notificação prioritária; o
+   canal externo não foi especificado.
