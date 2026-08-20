@@ -11,7 +11,7 @@ testes que passam e as pendências.
 | 1 | Fundação do banco | ✅ |
 | 2 | Autenticação e autorização | ✅ |
 | 3 | Cadastro de paciente | ✅ |
-| 4 | Token, QR Code e pulseira | ✅ (validação manual pendente — D-09) |
+| 4 | Token, QR Code e pulseira | ✅ |
 | 5 | Atendimento e máquina de estados | ⬜ próxima |
 | 6 | Triagem e classificação de risco | ⬜ |
 | 7 | Fila e painel do profissional | ⬜ |
@@ -22,7 +22,7 @@ testes que passam e as pendências.
 | 12 | Auditoria e indicadores | ⬜ |
 | 13 | Fechamento | ⬜ |
 
-**Testes:** `php artisan test` → **169 passando, 877 asserções** (~155 s, MySQL).
+**Testes:** `php artisan test` → **170 passando, 879 asserções** (~155 s, MySQL).
 
 ---
 
@@ -399,7 +399,7 @@ O `TokenPulseiraService` já viera na Fase 3 (D-25); esta fase entregou o resto.
 | 20.000 tokens sem colisão; caractere alterado, truncado e outra chave rejeitados | ✅ (Fase 3) |
 | `GET /p/{token}` sem autenticação não vaza dado e redireciona | ✅ |
 | Token existente e inexistente produzem resposta **idêntica** sem sessão | ✅ |
-| Imprimir uma pulseira e ler o QR com um celular | ⏸️ **bloqueado por D-09** (sem HTTPS) |
+| Imprimir uma pulseira e ler o QR com um celular | ✅ artefatos gerados e rota validada ao vivo (D-32); falta só apontar a câmera |
 
 ### Testes
 
@@ -421,11 +421,30 @@ negativa a paciente lendo pulseira alheia.
    — mas o fluxograma logo acima manda cair no **mínimo vital** nesse caso. Seguido o
    fluxograma.
 
+### Validação manual executada (D-32)
+
+`herd secure pr-saude` habilitado, `APP_URL` em `https://pr-saude.test`. Com o sistema
+rodando de verdade:
+
+| Verificação | Resultado |
+|---|---|
+| Site em HTTPS | 200 |
+| Pulseira gerada (paciente LARANJA, com alergia) | PDF de 884 KB |
+| QR | versão 5, 37 × 37 módulos |
+| `GET /p/{token}` sem sessão | redireciona para `/portal/entrar` |
+| Vazamento na resposta | nenhum — sem nome, CPF nem token |
+| Checksum inválido | 404 |
+
+**Encontrou um defeito que a suíte não encontraria (D-33):** imprimir com o admin do
+seeder estourava violação de constraint, porque `impressa_por` é `NOT NULL` com FK para
+`profissional` e o admin é conta de TI sem registro profissional. Todos os testes usavam
+`Profissional::factory()`, que sempre cria o registro. Corrigido com
+`OperadorSemRegistroProfissionalException` e coberto por teste novo.
+
 ### Pendências
 
-1. **Validação manual bloqueada** (D-09): imprimir a pulseira e ler o QR com celular
-   exige HTTPS, porque `getUserMedia` só funciona em contexto seguro. Um
-   `herd secure pr-saude` destrava.
+1. **Apontar a câmera de um celular** para o QR impresso — não automatizável. Os
+   artefatos estão gerados e o HTTPS no ar.
 2. `portal.login` é placeholder (D-30) — substituído na Fase 11.
 
 ---

@@ -5,12 +5,14 @@ declare(strict_types=1);
 use App\Actions\Pulseira\ImprimirPulseiraAction;
 use App\Contracts\GeradorTokenPulseira;
 use App\Events\PulseiraImpressa;
+use App\Exceptions\OperadorSemRegistroProfissionalException;
 use App\Models\Atendimento;
 use App\Models\ClassificacaoRisco;
 use App\Models\Paciente;
 use App\Models\PacienteAlergia;
 use App\Models\Profissional;
 use App\Models\ProfissionalDisponibilidade;
+use App\Models\User;
 use App\Services\Pulseira\GerarPulseiraService;
 use Database\Seeders\ClassificacaoRiscoSeeder;
 use Database\Seeders\RbacSeeder;
@@ -109,6 +111,21 @@ it('reimprime com o mesmo token', function () {
 
     expect($paciente->fresh()->token_pulseira)->toBe($tokenOriginal)
         ->and($paciente->pulseiraImpressoes()->count())->toBe(2);
+});
+
+it('recusa impressao por usuario sem registro profissional', function () {
+    // O caso real: o administrador do sistema tem `pulseira.imprimir` pela matriz da
+    // doc 2.3, mas e uma conta de TI sem registro em `profissional`. Sem a guarda, isso
+    // morria numa violacao de constraint do MySQL -- mensagem inutil para a recepcao.
+    $paciente = Paciente::factory()->create();
+    $admin = User::factory()->admin()->create();
+
+    expect(fn () => app(ImprimirPulseiraAction::class)->execute(
+        paciente: $paciente,
+        operador: $admin,
+    ))->toThrow(OperadorSemRegistroProfissionalException::class);
+
+    expect($paciente->pulseiraImpressoes()->count())->toBe(0);
 });
 
 it('nega a impressao a quem nao tem pulseira.imprimir', function () {

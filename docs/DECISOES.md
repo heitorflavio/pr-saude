@@ -178,8 +178,8 @@ não o texto literal da mensagem.
 
 ## D-09 · HTTPS não habilitado — decisão consciente, com risco conhecido
 
-**Origem:** decisão do usuário no checkpoint do Passo 0 · **Status:** ⚠️ risco aceito ·
-**2026-08-18**
+**Origem:** decisão do usuário no checkpoint do Passo 0 · **Status:** ✅ **resolvida na
+Fase 4** (ver D-32) · **2026-08-18**
 
 O prompt §3.6 pede `herd secure pr-saude` e `APP_URL=https://pr-saude.test`, porque
 `getUserMedia` (acesso à câmera) só funciona em contexto seguro. **O usuário optou por não
@@ -693,3 +693,57 @@ Seis testes da Fase 4 falharam por essa causa única. A factory agora chama
 **O que isso ensina sobre o marcador:** um placeholder que produz dado com o *formato*
 certo mas o *conteúdo* errado é pior que um que falha na hora — ele atravessa três fases
 sem ser notado e só aparece quando alguém escreve o teste que depende do conteúdo.
+
+---
+
+## D-32 · HTTPS habilitado; a validação manual da Fase 4 destravou
+
+**Origem:** decisão do usuário no checkpoint da Fase 4 · **Status:** ✅ aplicada ·
+**2026-08-18**
+
+`herd secure pr-saude` executado; `APP_URL` passou a `https://pr-saude.test` no `.env` e
+no `.env.example`. Isso **fecha o D-09**, que registrava o risco assumido de não ter
+contexto seguro.
+
+**Verificado ao vivo, não só em teste:**
+
+| Verificação | Resultado |
+|---|---|
+| Site responde em HTTPS | 200 em `/login` |
+| Pulseira gerada com paciente, atendimento LARANJA e alergia | PDF de 884 KB |
+| QR renderizado | versão 5, 37 × 37 módulos, três marcadores de posição |
+| `GET /p/{token}` sem sessão | redireciona para `/portal/entrar` |
+| Vazamento na resposta | **nenhum** — sem nome, sem CPF, sem o token |
+| Token com checksum inválido | 404 |
+
+**O que ainda depende de você:** apontar a câmera de um celular para o QR impresso. Isso
+não é automatizável daqui. Os artefatos estão gerados e o HTTPS está no ar, então basta
+abrir o PDF e escanear.
+
+---
+
+## D-33 · Imprimir pulseira exige registro profissional
+
+**Origem:** defeito encontrado na validação manual · **Status:** ✅ corrigida ·
+**2026-08-18**
+
+A geração da pulseira de demonstração falhou com
+`Column 'impressa_por' cannot be null` — violação de constraint do MySQL, não erro de
+domínio.
+
+**A causa.** `pulseira_impressao.impressa_por` é `NOT NULL` com FK para
+`profissional (user_id)`, e a Action passava `$operador->profissional?->user_id`. O
+administrador criado pelo `UsuarioAdministradorSeeder` é uma conta de TI **sem registro
+profissional** — mas tem a permission `pulseira.imprimir` pela matriz da doc §2.3. Ou
+seja: passava na autorização e morria no banco.
+
+**Decisão.** O esquema está certo — quem imprime a pulseira precisa ser um profissional
+identificável, porque "quem imprimiu" é parte da rastreabilidade (RF-15). A Action passou
+a recusar antes, com `OperadorSemRegistroProfissionalException`, que diz o que fazer em
+vez de expor uma mensagem do MySQL a quem está na recepção.
+
+**O que isso revela sobre o método:** a suíte de 169 testes não pegou isso porque todos
+os testes de impressão usam `Profissional::factory()`, que sempre cria o registro. O
+caminho que quebra é o do usuário que o *seeder* cria. Rodar o sistema de verdade
+encontrou em um minuto o que a suíte não encontraria — é exatamente para isso que a
+*definition of done* da Fase 4 pede validação manual.
