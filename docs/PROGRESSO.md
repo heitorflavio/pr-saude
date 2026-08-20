@@ -15,14 +15,14 @@ testes que passam e as pendências.
 | 5 | Atendimento e máquina de estados | ✅ |
 | 6 | Triagem e classificação de risco | ✅ |
 | 7 | Fila e painel do profissional | ✅ |
-| 8 | Prontuário e evolução | ⬜ próxima |
-| 9 | Medicamentos | ⬜ |
+| 8 | Prontuário e evolução | ✅ |
+| 9 | Medicamentos | ⬜ próxima |
 | 10 | Clínica e exames | ⬜ |
 | 11 | Portal do paciente | ⬜ |
 | 12 | Auditoria e indicadores | ⬜ |
 | 13 | Fechamento | ⬜ |
 
-**Testes:** `php artisan test` → **234 passando, 1418 asserções** (~26 s, MySQL).
+**Testes:** `php artisan test` → **270 passando, 1495 asserções** (~32 s, MySQL).
 
 ---
 
@@ -634,18 +634,59 @@ e a média móvel ignorando histórico fora da janela de 30 dias.
 
 ---
 
-## ⬜ Fase 8 — Prontuário e evolução
+## ✅ Fase 8 — Prontuário e evolução (2026-08-20)
 
-Escopo previsto:
+**RF atendidos:** RF-45, RF-46, RF-47, RF-48, RF-49, RF-50, RF-51, RF-52 ·
+**RN:** RN-16, RN-17, RN-28, RN-29 · **UC-08**
 
-- [ ] `RegistrarNotaClinicaAction` com SOAP em quatro colunas (doc §9.2)
-- [ ] `RetificarRegistroAction` criando `ADENDO` e mantendo o original visível (doc §9.3)
-- [ ] `HashEncadeadoService` com forma canônica de JSON, `hash_anterior` e
-      `verificarCadeia()` (doc §9.4)
-- [ ] Snapshot de `autor_nome` e `autor_conselho` em cada registro
-- [ ] Diagnósticos com CID-10 e natureza; campo `sigiloso` com auditoria (doc §9.6)
-- [ ] Prontuário consolidado atravessando todos os atendimentos (RF-51) e export PDF (RF-52)
-- [ ] Job agendado de verificação de integridade da cadeia
-- [ ] Teste: após retificação, o conteúdo original permanece inalterado
-- [ ] Teste: alteração por fora da aplicação é detectada como `CONTEUDO_ALTERADO`;
-      remoção de registro do meio, como `ELO_ROMPIDO`
+### Entregue
+
+| Artefato | Papel |
+|---|---|
+| `HashEncadeadoService` | Forma canônica, `hash_anterior`, `verificarCadeia()` (doc §9.4) |
+| `RegistrarNotaClinicaAction` | SOAP em quatro colunas, snapshot de autoria (doc §9.2) |
+| `RetificarRegistroAction` | Adendo; o original não é tocado (doc §9.3) |
+| `RegistrarDiagnosticoAction` | CID-10 com natureza e principal (RF-46) |
+| `ProntuarioConsolidadoService` | Linha do tempo, episódios (RF-51), tipos por permissão |
+| `VerificarIntegridadeProntuarioJob` | Varredura horária da cadeia, agendada em `routes/console.php` |
+| `ProntuarioController` + `routes/prontuario.php` | 7 rotas, **nenhuma `PUT`/`PATCH`/`DELETE`** |
+| `resources/views/prontuario/pdf.blade.php` | RF-52, com tarja, autoria de época e integridade |
+| `Prontuario/Show.vue`, `Prontuario/Consolidado.vue`, `RegistroClinico.vue` | Telas |
+| 3 exceções de domínio, 4 eventos | `RegistroClinicoInvalido`, `DiagnosticoInvalido`; `RegistroClinicoCriado`, `RegistroRetificado`, `DiagnosticoRegistrado`, `IntegridadeProntuarioViolada` |
+
+### Definition of Done
+
+| Critério | Como está garantido |
+|---|---|
+| `UPDATE` em `registro_clinico` lança | `RegistroClinico::save()` (Fase 1) + teste |
+| `DELETE` lança | `delete()` e `forceDelete()` sobrescritos + teste |
+| Adendo órfão é recusado | `CHECK ck_registro_adendo`, testado com `INSERT` cru |
+| Após retificação o original permanece inalterado | Comparação byte a byte da linha via `DB::table()` |
+| Alteração por fora vira `CONTEUDO_ALTERADO` | `UPDATE` cru real no teste, não simulado |
+| Remoção do meio vira `ELO_ROMPIDO` | `DELETE` cru real no teste |
+| Autoria é snapshot | Cadastro alterado depois; registro não muda |
+| Registro sigiloso some no portal, sem indicar que existe | `linhaDoTempo()` filtra por Policy; teste espera lista **vazia** |
+| Ausência de rota de edição | Teste varre `Route::getRoutes()` |
+
+### O que foi decidido sozinho
+
+D-40 a D-44 em `docs/DECISOES.md`. Os dois que mais importam:
+
+- **D-40** — o `HashEncadeadoService` da doc §9.4, transcrito literalmente, acusaria
+  adulteração em **todo registro íntegro**: `toArray()` aplica casts e `(string)` sobre
+  um Carbon descarta os microssegundos que a coluna `DATETIME(6)` guarda. A forma
+  canônica passou a normalizar data, enum e id explicitamente. Um detector que sempre
+  alarma é um detector desligado.
+- **D-42** — o middleware `vinculo` só resolvia `{paciente}`. A rota
+  `atendimentos/{atendimento}/prontuario` — a que o plantão usa o dia inteiro — teria
+  ficado fora do *break the glass* (RN-28).
+
+### Pendências
+
+1. **D-43 precisa de validação clínica**: "um diagnóstico principal por atendimento" e
+   "suspeita não pode ser principal" são interpretação, não estão no documento.
+2. Os quatro eventos são emitidos sem ouvinte, por desenho (doc §7.7).
+3. O `REVOKE UPDATE, DELETE` sobre `registro_clinico` — terceira camada da imutabilidade
+   — continua alocado à Fase 13 (`docs/privilegios.sql`).
+4. O autocompletar de CID-10 (`GET /cid10`) existe na API mas a tela ainda pede o código
+   digitado; a busca por descrição é melhoria de usabilidade, não de regra.

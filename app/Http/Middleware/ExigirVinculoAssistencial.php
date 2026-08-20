@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Models\Atendimento;
 use App\Models\Paciente;
 use App\Services\Auditoria\AuditoriaService;
 use Closure;
@@ -27,10 +28,10 @@ final class ExigirVinculoAssistencial
 
     public function handle(Request $request, Closure $next): Response
     {
-        $paciente = $request->route('paciente');
+        $paciente = $this->pacienteDaRota($request);
         $usuario = $request->user();
 
-        if (! $paciente instanceof Paciente || $usuario === null) {
+        if ($paciente === null || $usuario === null) {
             return $next($request);
         }
 
@@ -76,5 +77,26 @@ final class ExigirVinculoAssistencial
         $request->session()->flash('justificativa_quebra_sigilo', $justificativa);
 
         return $next($request);
+    }
+
+    /**
+     * O paciente da rota, direto ou pelo atendimento.
+     *
+     * RN-28 protege o prontuário, e o prontuário é acessado pelas duas formas de rota:
+     * `pacientes/{paciente}/prontuario` e `atendimentos/{atendimento}/prontuario`.
+     * Resolver só a primeira deixaria a segunda -- justamente a que o plantão usa o dia
+     * inteiro -- fora do break the glass.
+     */
+    private function pacienteDaRota(Request $request): ?Paciente
+    {
+        $paciente = $request->route('paciente');
+
+        if ($paciente instanceof Paciente) {
+            return $paciente;
+        }
+
+        $atendimento = $request->route('atendimento');
+
+        return $atendimento instanceof Atendimento ? $atendimento->paciente : null;
     }
 }

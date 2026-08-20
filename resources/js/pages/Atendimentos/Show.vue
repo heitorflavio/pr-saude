@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem, type SharedData } from '@/types';
-import { Head, useForm, usePage } from '@inertiajs/vue3';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { ArrowRight, Clock, LoaderCircle } from 'lucide-vue-next';
 import { computed } from 'vue';
 
@@ -89,7 +89,11 @@ const finalizar = () => formFinalizar.post(route('atendimentos.finalizar', props
                         Situação: <strong>{{ atendimento.status_rotulo }}</strong>
                     </p>
                 </div>
-                <BadgePrioridade :cor="prioridadeCor" :rotulo="prioridadeRotulo" />
+                <div class="flex flex-col items-end gap-2">
+                    <BadgePrioridade :cor="prioridadeCor" :rotulo="prioridadeRotulo" />
+                    <!-- UC-08: a linha do tempo clínica fica a um clique da administrativa. -->
+                    <Link :href="route('prontuario.show', atendimento.id)" class="text-xs underline underline-offset-4">Prontuário</Link>
+                </div>
             </header>
 
             <!-- RF-11: alergias em destaque em TODA tela do atendimento. -->

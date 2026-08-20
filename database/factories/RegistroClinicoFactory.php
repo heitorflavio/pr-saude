@@ -8,6 +8,7 @@ use App\Enums\TipoRegistroClinico;
 use App\Models\Atendimento;
 use App\Models\Profissional;
 use App\Models\RegistroClinico;
+use App\Services\Prontuario\HashEncadeadoService;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
@@ -23,8 +24,6 @@ class RegistroClinicoFactory extends Factory
      */
     public function definition(): array
     {
-        $conteudo = fake()->paragraph();
-
         return [
             'uuid' => (string) Str::uuid(),
             'atendimento_id' => Atendimento::factory(),
@@ -33,17 +32,33 @@ class RegistroClinicoFactory extends Factory
             'subjetivo' => fake()->sentence(),
             'objetivo' => fake()->sentence(),
             'avaliacao' => fake()->sentence(),
-            'plano' => $conteudo,
+            'plano' => fake()->paragraph(),
             'sigiloso' => false,
             'autor_id' => Profissional::factory()->medico(),
             // Snapshots: o registro não muda se o cadastro do autor mudar.
             'autor_nome' => fake()->name(),
             'autor_conselho' => 'CRM/SP '.fake()->numerify('######'),
-            // O encadeamento real é do HashEncadeadoService (Fase 8).
-            'hash_conteudo' => hash('sha256', $conteudo),
-            'hash_anterior' => null,
+            // O par de hashes é calculado em `configure()`, depois que as factories
+            // aninhadas viram id de verdade -- aqui eles ainda seriam de um registro que
+            // não existe.
             'criado_em' => now(),
         ];
+    }
+
+    /**
+     * Fecha a cadeia de hash de verdade (doc §9.4).
+     *
+     * Um valor de fachada aqui faria `verificarCadeia()` acusar `CONTEUDO_ALTERADO` em
+     * todo registro de teste -- e um detector que sempre alarma é um detector desligado.
+     */
+    public function configure(): static
+    {
+        return $this->afterMaking(function (RegistroClinico $registro) {
+            $hashes = app(HashEncadeadoService::class);
+
+            $registro->hash_anterior ??= $hashes->ultimoHashDoAtendimento((int) $registro->atendimento_id);
+            $registro->hash_conteudo = $hashes->calcularDoRegistro($registro);
+        });
     }
 
     /**

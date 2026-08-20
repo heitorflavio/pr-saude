@@ -41,10 +41,7 @@ const estilo = computed(() => estilos[props.gravidade] ?? estilos.DESCONHECIDA);
 </script>
 
 <template>
-    <span
-        class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset"
-        :class="estilo.classe"
-    >
+    <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset" :class="estilo.classe">
         <component :is="estilo.icone" class="h-3.5 w-3.5" aria-hidden="true" />
         {{ estilo.rotulo }}
     </span>

@@ -913,3 +913,110 @@ sobre a estimativa precisar ser honesta.
 **A duração vem de `fila_item`** (`chamado_em` → `saiu_em`), não do atendimento inteiro:
 é o tempo que aquele profissional gastou com aquele paciente, e não o tempo de
 permanência que inclui exame, medicação e observação.
+
+---
+
+## D-40 · A forma canônica do hash normaliza data e enum antes de calcular
+
+**Origem:** correção de erro no código da doc §9.4 · **Status:** ✅ aplicada ·
+**2026-08-20**
+
+O `HashEncadeadoService` da doc §9.4 calcula a verificação com
+`$this->calcular($r->toArray())`. Isso não funciona, e o modo como falha é o pior
+possível: **acusa adulteração em todo registro íntegro**.
+
+Duas causas:
+
+1. `toArray()` aplica os casts. `criado_em` sai em ISO-8601 (`2026-08-20T13:04:11.000000Z`)
+   e `tipo` sai como valor do enum — formas diferentes das usadas na criação, quando
+   `criado_em` ainda é um Carbon.
+2. `(string) $dados['criado_em']` sobre um Carbon devolve `Y-m-d H:i:s`, **sem
+   microssegundos** — enquanto a coluna é `DATETIME(6)` e o valor lido do banco os traz.
+
+**Decisão.** A forma canônica normaliza explicitamente: data sempre reformatada como
+`Y-m-d H:i:s.u`, enum sempre reduzido a `->value`, ids sempre convertidos a `int`. E a
+verificação lê `getAttributes()` — os atributos crus — em vez de `toArray()` ou
+`getRawOriginal()`; o primeiro aplica casts, o segundo está vazio em model ainda não
+persistido, o que impediria calcular o hash antes de gravar.
+
+**Por que isso importa mais do que parece.** Um detector que alarma sempre é um detector
+desligado: depois da terceira falsa quebra, ninguém mais olha o relatório — e a
+adulteração real passa junto com o ruído. A `RegistroClinicoFactory` também passou a
+fechar a cadeia de verdade, pelo mesmo motivo.
+
+---
+
+## D-41 · O `hash_anterior` esperado é o gravado, nunca o recalculado
+
+**Origem:** decisão de implementação · **Status:** ✅ aplicada · **2026-08-20**
+
+Em `verificarCadeia()`, depois de conferir um registro, o elo esperado do próximo é o
+`hash_conteudo` **gravado** naquele registro — não o que acabou de ser recalculado.
+
+A alternativa mascararia exatamente o ataque que a cadeia existe para detectar: um
+registro adulterado viraria o novo "esperado", e a cadeia pareceria íntegra de lá para a
+frente. A adulteração apareceria como uma quebra isolada em vez de um ponto a partir do
+qual tudo é suspeito.
+
+O teste `a adulteração não é mascarada nos registros seguintes` fixa esse comportamento.
+
+---
+
+## D-42 · `ExigirVinculoAssistencial` passou a resolver o paciente também pelo atendimento
+
+**Origem:** lacuna encontrada ao implementar a Fase 8 · **Status:** ✅ aplicada ·
+**2026-08-20**
+
+O middleware `vinculo` (RN-28, *break the glass*) resolvia apenas `{paciente}` na rota.
+Até a Fase 7 isso bastava, porque as rotas clínicas eram todas do paciente.
+
+A Fase 8 introduz `atendimentos/{atendimento}/prontuario` — **a rota que o plantão usa o
+dia inteiro**. Sem a mudança, ela ficaria inteiramente fora do break the glass: qualquer
+profissional autenticado leria o prontuário de qualquer paciente sem justificativa e sem
+o registro de quebra de sigilo, bastando conhecer o id do atendimento.
+
+**Decisão.** `pacienteDaRota()` resolve `{paciente}` diretamente ou `{atendimento}` pela
+relação. Uma única implementação de RN-28, em vez de uma segunda verificação no
+controller que a próxima rota esqueceria.
+
+---
+
+## D-43 · O diagnóstico não é retificado por adendo
+
+**Origem:** lacuna do documento · **Status:** ✅ aplicada · **2026-08-20**
+
+RN-16 e o mecanismo de adendo valem para `registro_clinico`. O documento não diz o que
+acontece quando um diagnóstico registrado se mostra errado.
+
+**Decisão.** `diagnostico` não é registro clínico e não tem cadeia de hash. A revisão de
+hipótese é um **diagnóstico novo**, com a natureza correspondente; o anterior permanece,
+porque é ele que explica as condutas tomadas enquanto valia.
+
+Duas regras de consistência foram acrescentadas, e ambas são interpretação — não estão
+no documento:
+
+- **Uma suspeita não pode ser o diagnóstico principal.** Marcar como principal uma
+  hipótese ainda em aberto transformaria dúvida em afirmação na estatística e no
+  faturamento.
+- **Um principal por atendimento.** É ele que responde "por que este paciente esteve
+  aqui"; dois tornam a resposta ambígua.
+
+⚠️ **Precisa de validação clínica.** Se o hospital exigir que o principal possa ser
+transferido de um CID para outro sem novo registro, a segunda regra muda.
+
+---
+
+## D-44 · O sigilo do original acompanha o adendo
+
+**Origem:** lacuna do documento · **Status:** ✅ aplicada · **2026-08-20**
+
+A doc §9.6 define `sigiloso` e a §9.3 define o adendo, mas não diz o que acontece quando
+se retifica um registro sigiloso.
+
+**Decisão.** O adendo herda o `sigiloso` do original. A retificação não é o caminho para
+tornar visível no portal um registro que o médico decidiu não exibir — se fosse, o campo
+seria contornável por qualquer um que pudesse retificar, e a decisão clínica de não
+expor uma suspeita grave ainda não comunicada seria desfeita por acidente.
+
+Tornar visível continua possível: é uma decisão explícita, e não efeito colateral de
+uma correção de texto.

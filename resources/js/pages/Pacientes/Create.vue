@@ -91,8 +91,7 @@ const enviar = () => form.post(route('pacientes.store'));
                     </Label>
                 </div>
                 <p class="-mt-2 text-xs text-muted-foreground">
-                    O sistema gera um código provisório no formato <code>NI-2026-0031</code>, que passa a ser o login do
-                    paciente até a regularização.
+                    O sistema gera um código provisório no formato <code>NI-2026-0031</code>, que passa a ser o login do paciente até a regularização.
                 </p>
 
                 <div class="grid gap-2">
@@ -124,11 +123,7 @@ const enviar = () => form.post(route('pacientes.store'));
 
                     <div class="grid gap-2">
                         <Label for="sexo">Sexo</Label>
-                        <select
-                            id="sexo"
-                            v-model="form.sexo"
-                            class="h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
-                        >
+                        <select id="sexo" v-model="form.sexo" class="h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm">
                             <option value="NAO_INFORMADO">Não informado</option>
                             <option value="FEMININO">Feminino</option>
                             <option value="MASCULINO">Masculino</option>
@@ -155,7 +150,10 @@ const enviar = () => form.post(route('pacientes.store'));
             <section class="grid gap-4">
                 <h2 class="text-lg font-semibold">
                     Contato
-                    <span v-if="ehMenor" class="ml-2 rounded bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-100">
+                    <span
+                        v-if="ehMenor"
+                        class="ml-2 rounded bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-100"
+                    >
                         responsável legal obrigatório
                     </span>
                 </h2>
@@ -208,14 +206,14 @@ const enviar = () => form.post(route('pacientes.store'));
                     </Button>
                 </div>
                 <p class="-mt-2 text-xs text-muted-foreground">
-                    Exibidas em destaque em toda tela do atendimento (RF-11) e verificadas por princípio ativo na
-                    administração de medicamentos (RN-21).
+                    Exibidas em destaque em toda tela do atendimento (RF-11) e verificadas por princípio ativo na administração de medicamentos
+                    (RN-21).
                 </p>
 
                 <div
                     v-for="(alergia, indice) in form.alergias"
                     :key="indice"
-                    class="grid gap-3 rounded-lg border border-sidebar-border/70 p-3 sm:grid-cols-[1fr_10rem_1fr_auto] sm:items-end dark:border-sidebar-border"
+                    class="grid gap-3 rounded-lg border border-sidebar-border/70 p-3 dark:border-sidebar-border sm:grid-cols-[1fr_10rem_1fr_auto] sm:items-end"
                 >
                     <div class="grid gap-2">
                         <Label :for="`alergia-${indice}`">Substância</Label>
@@ -257,7 +255,7 @@ const enviar = () => form.post(route('pacientes.store'));
                 <div
                     v-for="(condicao, indice) in form.condicoes"
                     :key="indice"
-                    class="grid gap-3 rounded-lg border border-sidebar-border/70 p-3 sm:grid-cols-[1fr_12rem_auto] sm:items-end dark:border-sidebar-border"
+                    class="grid gap-3 rounded-lg border border-sidebar-border/70 p-3 dark:border-sidebar-border sm:grid-cols-[1fr_12rem_auto] sm:items-end"
                 >
                     <div class="grid gap-2">
                         <Label :for="`condicao-${indice}`">Descrição</Label>

@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { usePermissoes } from '@/composables/usePermissoes';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem, type SharedData } from '@/types';
-import { Head, useForm, usePage } from '@inertiajs/vue3';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { IdCard, KeyRound, LoaderCircle, Printer } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
@@ -86,6 +86,10 @@ const mascararCpf = (cpf: unknown) => (typeof cpf === 'string' ? cpf.replace(/(\
                     <h1 class="text-2xl font-bold">{{ paciente.nome }}</h1>
                     <p v-if="paciente.nome_social" class="text-sm text-muted-foreground">Nome civil: {{ paciente.nome_completo }}</p>
                     <p class="mt-1 text-sm text-muted-foreground">{{ paciente.data_nascimento }} · {{ paciente.idade }}</p>
+                    <!-- RF-51: o histórico atravessando todos os atendimentos. -->
+                    <Link :href="route('prontuario.consolidado', paciente.user_id)" class="mt-1 inline-block text-sm underline underline-offset-4">
+                        Prontuário consolidado
+                    </Link>
                 </div>
 
                 <form v-if="pode('pulseira.imprimir')" :action="route('pulseira.imprimir', paciente.user_id)" method="post" target="_blank">
