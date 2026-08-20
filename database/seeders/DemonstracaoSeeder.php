@@ -21,7 +21,7 @@ use Illuminate\Database\Seeder;
 /** Ambiente navegável de demonstração pedido na Fase 13. */
 final class DemonstracaoSeeder extends Seeder
 {
-    private const SENHA = 'Demo@2026';
+    private const SENHA = 'password';
 
     public function run(): void
     {

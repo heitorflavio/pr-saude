@@ -32,11 +32,11 @@ class UsuarioAdministradorSeeder extends Seeder
             ['login' => $login],
             [
                 'name' => 'Administrador do sistema',
-                'email' => env('ADMIN_EMAIL', 'admin@pr-saude.test'),
+                'email' => 'admin@pr-saude.test',
                 // Texto claro de propósito: o cast `hashed` aplica Argon2id.
-                'password' => (string) env('ADMIN_SENHA', 'trocar-esta-senha'),
+                'password' => 'password',
                 'tipo' => 'ADMIN',
-                'senha_provisoria' => true,
+                'senha_provisoria' => false,
                 'ativo' => true,
                 'deleted_at' => null,
             ]
