@@ -16,13 +16,13 @@ testes que passam e as pendências.
 | 6 | Triagem e classificação de risco | ✅ |
 | 7 | Fila e painel do profissional | ✅ |
 | 8 | Prontuário e evolução | ✅ |
-| 9 | Medicamentos | ⬜ próxima |
-| 10 | Clínica e exames | ⬜ |
+| 9 | Medicamentos | ✅ |
+| 10 | Clínica e exames | ⬜ próxima |
 | 11 | Portal do paciente | ⬜ |
 | 12 | Auditoria e indicadores | ⬜ |
 | 13 | Fechamento | ⬜ |
 
-**Testes:** `php artisan test` → **270 passando, 1495 asserções** (~32 s, MySQL).
+**Testes:** `php artisan test` → **282 passando, 1549 asserções** (~29 s, MySQL).
 
 ---
 
@@ -690,3 +690,57 @@ D-40 a D-44 em `docs/DECISOES.md`. Os dois que mais importam:
    — continua alocado à Fase 13 (`docs/privilegios.sql`).
 4. O autocompletar de CID-10 (`GET /cid10`) existe na API mas a tela ainda pede o código
    digitado; a busca por descrição é melhoria de usabilidade, não de regra.
+
+---
+
+## ✅ Fase 9 — Medicamentos (2026-08-20)
+
+**RF atendidos:** RF-53 a RF-61 · **RN:** RN-18 a RN-23 · **UC-09/UC-10**
+
+### Entregue
+
+- `PrescreverAction`, `SuspenderPrescricaoAction` e `RegistrarAdministracaoAction`: ordem,
+  agenda e fato permanecem separados, e toda escrita clínica ocorre em transação.
+- `AprazamentoService`: grade operacional 6/12/18/00; SOS não gera horário (RF-56).
+- RN-21 compara alergia pelo **princípio ativo**, inclusive texto sem acento e catálogo
+  com nome comercial diferente. A sobreposição exige justificativa e emite
+  `AlertaAlergiaSobreposto` para notificação do prescritor.
+- RN-20 usa `lockForUpdate` para serializar confirmações e o índice
+  `uk_adm_aprazamento` como garantia final contra corrida.
+- RN-22 exige conferente distinto em alta vigilância; RN-23 aceita dose divergente, mas
+  exige observação e emite `DoseDivergente`.
+- Não administração com motivo (RF-58) e baixa do aprazamento na mesma transação.
+- Checklist do turno lido diretamente de `vw_doses_pendentes`, com polling de 10 s.
+- Tela dos nove certos: paciente, medicamento, dose, via, horário, validade, orientação,
+  forma e registro, sempre com alerta por ícone + texto além da cor.
+- Middleware de vínculo passou a resolver o paciente também por `prescricao` e
+  `aprazamento`; sem isso, as novas rotas contornariam a RN-28.
+
+### Definition of done
+
+| Critério | Estado |
+|---|---|
+| Alergia bloqueia; justificativa marca a sobreposição | ✅ |
+| Dose duplicada é recusada e resta um único fato | ✅ |
+| Alta vigilância recusa ausência e o próprio executor | ✅ |
+| Divergência é permitida com observação | ✅ |
+| Não administração exige motivo | ✅ |
+| Aprazamento muda na mesma transação | ✅ |
+
+### Testes
+
+`MedicamentoTest` acrescenta **12 testes e 54 asserções**. Suíte completa: **282 testes,
+1549 asserções**, build Vite verde.
+
+### Decisões e achados
+
+- **D-45:** tolerância de um segundo no início da vigência por arredondamento de
+  `DATETIME(0)` no MySQL; sem ela, uma ordem recém-criada pode parecer futura.
+- **D-46:** como o schema não possui colunas próprias para lote, validade e orientação,
+  a conferência é validada no servidor e anexada a `observacao`, sem criar migration que
+  divergiria da fonte normativa.
+
+### Pendências
+
+1. Os eventos de alergia e divergência estão prontos para listeners de mensageria; o
+   canal externo (push, SMS ou alerta interno) não é definido no documento.

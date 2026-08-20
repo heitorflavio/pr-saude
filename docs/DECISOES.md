@@ -1020,3 +1020,32 @@ expor uma suspeita grave ainda não comunicada seria desfeita por acidente.
 
 Tornar visível continua possível: é uma decisão explícita, e não efeito colateral de
 uma correção de texto.
+
+---
+
+## D-45 · Vigência tolera o arredondamento de `DATETIME(0)`
+
+**Origem:** defeito encontrado na Fase 9 · **Status:** ✅ aplicada · **2026-08-20**
+
+`prescricao.vigencia_inicio` é `DATETIME` sem precisão fracionária, mas `now()` traz
+microssegundos. O MySQL pode arredondar a fração ao segundo seguinte; nesse intervalo,
+`isFuture()` classificava como inválida uma prescrição que acabara de ser criada.
+
+**Decisão.** A RN-19 considera futura somente a vigência mais de um segundo à frente do
+relógio do servidor. Isso absorve apenas a perda de precisão do tipo e não amplia de modo
+clinicamente relevante a janela da ordem.
+
+---
+
+## D-46 · Lote, validade e orientação ficam na observação estruturada
+
+**Origem:** conflito entre mockup e schema · **Status:** ✅ aplicada · **2026-08-20**
+
+O mockup dos nove certos (§10.3) manda registrar conferência de lote, validade e
+orientação. A fonte normativa do banco não oferece colunas para esses três dados, e o
+plano proíbe divergir do `schema.sql` silenciosamente.
+
+**Decisão.** O FormRequest valida as conferências no servidor e o controller as compõe
+em linhas identificadas de `administracao_medicamento.observacao`. Preserva a evidência
+sem inventar colunas. Se o hospital precisar consultar lote/validade de forma agregada
+(por exemplo, recall), isso exige evolução explícita do modelo, não texto livre.

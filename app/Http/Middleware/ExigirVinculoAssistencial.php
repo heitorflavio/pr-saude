@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Models\Aprazamento;
 use App\Models\Atendimento;
 use App\Models\Paciente;
+use App\Models\Prescricao;
 use App\Services\Auditoria\AuditoriaService;
 use Closure;
 use Illuminate\Http\Request;
@@ -97,6 +99,20 @@ final class ExigirVinculoAssistencial
 
         $atendimento = $request->route('atendimento');
 
-        return $atendimento instanceof Atendimento ? $atendimento->paciente : null;
+        if ($atendimento instanceof Atendimento) {
+            return $atendimento->paciente;
+        }
+
+        $prescricao = $request->route('prescricao');
+        if ($prescricao instanceof Prescricao) {
+            return $prescricao->atendimento->paciente;
+        }
+
+        $aprazamento = $request->route('aprazamento');
+        if ($aprazamento instanceof Aprazamento) {
+            return $aprazamento->prescricaoItem->prescricao->atendimento->paciente;
+        }
+
+        return null;
     }
 }
