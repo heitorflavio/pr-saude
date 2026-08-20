@@ -42,9 +42,11 @@ docker compose up -d
 docker compose exec laravel.test composer install
 docker compose exec laravel.test npm ci
 docker compose exec laravel.test php artisan migrate --seed
-docker compose restart laravel.test
-docker compose exec -d laravel.test npm run dev
+docker compose restart laravel.test vite
 ```
+
+O Vite é um serviço do Compose e inicia automaticamente; não execute `npm run dev`
+manualmente.
 
 A aplicação fica em `http://localhost:8080`. O MySQL é publicado em `localhost:3307`
 apenas para clientes externos; o Laravel usa `mysql:3306` dentro da rede Docker.

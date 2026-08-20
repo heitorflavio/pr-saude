@@ -973,6 +973,9 @@ Fora das 13 fases: a raiz `/` ainda servia a página do starter kit. Registrado 
 - Sem nenhuma prop de dado — nem agregado. Salto para o conteúdo principal, marcos
   semânticos (`header`/`main`/`footer`), `aria-labelledby` nas seções e ícones marcados
   como decorativos.
+- Refinamento visual com hero de produto, prévia estática e anonimizada do fluxo,
+  navegação por âncoras, hierarquia responsiva e acabamento completo em modo escuro; as
+  duas portas e a ausência de dados públicos foram preservadas.
 
 ### Testes
 

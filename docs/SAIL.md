@@ -38,18 +38,15 @@ existente. Para preparar um banco novo com os dados de demonstração:
 
 ## Desenvolvimento diário
 
-Inicie os serviços em segundo plano. Os assets já compilados são servidos pelo próprio
-Laravel, portanto este é o único comando necessário no uso normal:
+Inicie Laravel, MySQL e Vite em segundo plano. Este é o único comando necessário no
+uso normal:
 
 ```bash
 ./vendor/bin/sail up -d
 ```
 
-Se estiver alterando o frontend e quiser hot reload, inicie o Vite em outro terminal:
-
-```bash
-./vendor/bin/sail npm run dev
-```
+O Vite é gerenciado como um serviço do Compose, incluindo reinício automático. Não
+execute `npm run dev` manualmente.
 
 Comandos frequentes:
 
@@ -68,9 +65,8 @@ No PowerShell, use os equivalentes abaixo (sem precisar abrir um terminal WSL):
 docker compose up -d
 docker compose exec laravel.test composer install
 docker compose exec laravel.test npm ci
-docker compose exec laravel.test npm run build
 docker compose exec laravel.test php artisan migrate --seed
-docker compose restart laravel.test
+docker compose restart laravel.test vite
 docker compose logs -f laravel.test
 ```
 
@@ -92,7 +88,7 @@ banco MySQL local.
 | Serviço | Endereço no Windows | Endereço entre contêineres |
 |---|---|---|
 | Aplicação | `http://localhost:8080` | `laravel.test:80` |
-| Vite | `http://localhost:5173` | `laravel.test:5173` |
+| Vite | `http://localhost:5173` | `vite:5173` |
 | MySQL | `localhost:3307` | `mysql:3306` |
 
 O Laravel deve usar `DB_HOST=mysql` e `DB_PORT=3306`. A porta `3307` só é necessária

@@ -1277,6 +1277,11 @@ prometer o que ele não tem. O rodapé traz o aviso de que o sistema não substi
 atendimento e o número do SAMU, porque uma página pública de pronto-socorro será
 encontrada por quem está passando mal.
 
+**Refinamento visual (2026-08-20).** A mesma decisão passou a ser apresentada como uma
+landing de produto: hero com dois acessos explícitos, prévia estática e anonimizada do
+fluxo, navegação por âncoras e seções próprias para jornada, acessos e segurança. A prévia
+não consulta o servidor nem exibe contagens; os rótulos de risco usam texto junto da cor.
+
 ---
 
 ## D-60 · Atendimentos ganham uma visão operacional própria

@@ -38,6 +38,9 @@ export default defineConfig({
         port: vitePort,
         strictPort: true,
         origin: `http://${viteHmrHost}:${vitePort}`,
+        cors: {
+            origin: ['http://localhost:8080', 'http://127.0.0.1:8080'],
+        },
         hmr: {
             host: viteHmrHost,
             clientPort: vitePort,
