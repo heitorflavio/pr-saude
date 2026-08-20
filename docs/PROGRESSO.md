@@ -916,3 +916,68 @@ asserções**; build Vite e lint verdes.
 1753 asserções**. O teste visual interativo no navegador integrado não pôde ser executado
 porque nenhum navegador estava conectado à sessão; a validação manual nos temas claro e
 escuro permanece explicitada no checklist de implantação.
+
+---
+
+## ✅ Complemento — Painel inicial da equipe (2026-08-20)
+
+Fora das 13 fases: a rota `/dashboard` ainda era o placeholder do starter kit. Registrado
+em `docs/DECISOES.md` como **D-58**.
+
+### Entregue
+
+- `DashboardController` + `PainelInicialService` substituem o closure de `routes/web.php`.
+  Só leitura: fila, atraso de dose e ordenação vêm de `vw_fila_ordenada` e
+  `vw_doses_pendentes`, e a criticidade da espera vem do `AvaliadorEsperaService` — nada
+  é recontado em PHP.
+- **Cada bloco é montado no servidor conforme a permission**: fila (`fila.ler`),
+  atendimentos (`atendimento.ler_status`), doses (`medicamento.ler_administracao` ou
+  `prescricao.ler`), exames (`exame.ler_solicitacao`). Quem não pode ver não recebe o
+  dado no payload.
+- `Dashboard.vue`: cartões de fila, além do tempo-alvo (RF-33), minha fila, atendimentos
+  abertos, doses pendentes e exames em curso; composição da fila por prioridade; lista de
+  quem aguarda profissional; próximas doses com marca de alta vigilância (RN-22).
+  Prioridade sempre com cor + rótulo + ícone via `BadgePrioridade` (RNF-15).
+- `usePoll(15000, { only: ['painel'] })` — mesmo padrão da fila (RF-34/RNF-03), com ciclo
+  mais folgado porque o painel é panorâmico.
+
+### Definition of done
+
+| Critério | Estado |
+|---|---|
+| Nenhum número reimplementa lógica das views | ✅ |
+| Bloco sem permissão não chega ao cliente | ✅ |
+| Prioridade nunca depende apenas da cor | ✅ |
+| A leitura do painel não escreve nada | ✅ |
+| Paciente do portal não alcança o painel da equipe | ✅ |
+
+### Testes
+
+`PainelInicialTest` acrescenta **12 testes e 166 asserções**. Suíte completa: **335
+testes, 1932 asserções**; Pint, ESLint e Prettier verdes.
+
+---
+
+## ✅ Complemento — Landing pública (2026-08-20)
+
+Fora das 13 fases: a raiz `/` ainda servia a página do starter kit. Registrado em
+`docs/DECISOES.md` como **D-59**.
+
+### Entregue
+
+- `Welcome.vue` reescrita em pt-BR: identificação do sistema, jornada do paciente em
+  quatro etapas, quatro garantias do domínio (adendo em vez de sobrescrita, alergia por
+  princípio ativo, acesso vinculado e auditado, paciente lê e não escreve) e rodapé com
+  aviso de que o sistema não substitui atendimento.
+- **Duas portas de entrada**: `login` (equipe, guard `web`) e `portal.login` (paciente,
+  guard `paciente`). Quem já tem sessão vê só o destino que lhe pertence.
+- Sem nenhuma prop de dado — nem agregado. Salto para o conteúdo principal, marcos
+  semânticos (`header`/`main`/`footer`), `aria-labelledby` nas seções e ícones marcados
+  como decorativos.
+
+### Testes
+
+`LandingPageTest` acrescenta **3 testes e 17 asserções**: a raiz é pública, o payload não
+contém nome de paciente / número de atendimento / token de pulseira, e toda rota citada na
+página existe — o `route()` do Ziggy derruba a tela inteira quando o nome não existe.
+Suíte completa: **338 testes, 1949 asserções**; ESLint e build verdes.

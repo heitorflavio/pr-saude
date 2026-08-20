@@ -1222,3 +1222,67 @@ cabeçalhos carrega o `X-Forwarded-For` que vira o IP gravado na trilha de audit
 confiar em qualquer origem transformaria esse IP em campo controlado pelo cliente. No
 ambiente local o valor é `127.0.0.1,::1`, os endereços com que o agente do túnel alcança
 o Herd.
+
+---
+
+## D-58 · O painel inicial é leitura agregada, montada por permissão no servidor
+
+**Origem:** pedido de produto (fora das 13 fases) · **Status:** ✅ aplicada · **2026-08-20**
+
+A rota `/dashboard` era o placeholder do starter kit — três `PlaceholderPattern` e nenhum
+dado. A doc não especifica uma tela inicial: ela numera o painel do profissional (RF-29,
+que é a fila) e a tela gerencial de indicadores (§7.6), mas nada entre as duas. Um painel
+inicial, portanto, é composição de dado já normatizado, e não regra de negócio nova —
+nenhum número dele decide conduta clínica.
+
+**Decisão.** `DashboardController` + `PainelInicialService` agregam apenas leitura:
+
+1. **Nenhum número é recalculado.** Fila, atraso de dose e ordenação vêm de
+   `vw_fila_ordenada` e `vw_doses_pendentes`; a criticidade da espera vem do
+   `AvaliadorEsperaService`. O painel e a tela da fila não podem discordar sobre quem é
+   o próximo, e a única forma de garantir isso é não ter uma segunda implementação.
+2. **Cada bloco só é montado se o usuário tem a permission correspondente** — a
+   contagem de doses não chega no payload da recepcionista. Filtrar no cliente deixaria
+   o dado no JSON de quem não pode vê-lo, e payload é tão visível quanto tela (§14.2).
+   O que o componente Vue decide é layout; o que o servidor decide é acesso.
+3. **A lista de "próximos" é a dos pacientes sem profissional atribuído.** `posicao` na
+   `vw_fila_ordenada` é `ROW_NUMBER()` particionado por `profissional_id`: só é
+   comparável dentro da fila de um profissional. Um "próximos" global exigiria reordenar
+   em PHP — exatamente a segunda fonte de verdade que a RN-10 não admite. O profissional
+   com fila própria vê a dele em bloco separado.
+4. **Ciclo de polling de 15 s**, contra os 10 s da fila (RF-34/RNF-03): o painel é
+   panorâmico, não é a tela de onde se chama paciente. Como na fila, o `only` restringe
+   o recarregamento a uma única prop.
+
+O painel não escreve nada, não tem Action e não altera nenhuma invariante — há teste
+comparando o estado de `fila_item` antes e depois da leitura.
+
+---
+
+## D-59 · A landing pública é texto fixo e duas portas de entrada
+
+**Origem:** pedido de produto (fora das 13 fases) · **Status:** ✅ aplicada · **2026-08-20**
+
+A raiz `/` ainda servia a página de boas-vindas do starter kit — 781 linhas em inglês
+apontando para a documentação do Laravel. A doc não especifica uma tela pública, o que
+significa que ela não pode conter nada de normativo: é a única página que qualquer pessoa
+alcança sem sessão.
+
+**Decisão.** `Welcome.vue` reescrita com duas restrições explícitas:
+
+1. **Nenhum dado, nem agregado.** Nem tamanho de fila, nem tempo médio de espera, nem
+   nome de unidade. Um painel público de fila pareceria útil e seria vazamento por
+   agregação: em unidade pequena, "1 paciente em atendimento vermelho" é informação sobre
+   uma pessoa identificável. A página não tem prop de dado, e é isso que garante o
+   silêncio — não uma verificação em controller.
+2. **Duas portas, não uma.** Equipe e paciente autenticam em guards distintos (`web` e
+   `paciente`, §2.4) com credenciais distintas — e-mail institucional de um lado, CPF do
+   outro. Um único botão "Entrar" faria o paciente tentar a porta da equipe e receber
+   "credenciais inválidas" sem entender por quê. Quem já tem sessão vê apenas o destino
+   que lhe pertence.
+
+O texto descreve o que o sistema faz — Manchester, fila por prioridade, adendo em vez de
+sobrescrita, alergia por princípio ativo, dupla checagem, liberação de resultado — sem
+prometer o que ele não tem. O rodapé traz o aviso de que o sistema não substitui
+atendimento e o número do SAMU, porque uma página pública de pronto-socorro será
+encontrada por quem está passando mal.
