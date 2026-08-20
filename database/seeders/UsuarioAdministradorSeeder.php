@@ -32,7 +32,7 @@ class UsuarioAdministradorSeeder extends Seeder
             ['login' => $login],
             [
                 'name' => 'Administrador do sistema',
-                'email' => 'admin@pr-saude.test',
+                'email' => 'admin@prsaude.com',
                 // Texto claro de propósito: o cast `hashed` aplica Argon2id.
                 'password' => 'password',
                 'tipo' => 'ADMIN',

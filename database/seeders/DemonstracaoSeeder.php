@@ -42,7 +42,7 @@ final class DemonstracaoSeeder extends Seeder
         $this->atendimentos($pacientes, $unidade, $equipe);
 
         $this->command?->info('Demonstração: 1 unidade, 8 profissionais, 30 pacientes e 15 atendimentos.');
-        $this->command?->warn('Senha de todas as contas demo: '.self::SENHA);
+        $this->command?->warn('Senha de todas as contas demo: ' . self::SENHA);
     }
 
     /** @return array<string, Profissional> */
@@ -63,7 +63,7 @@ final class DemonstracaoSeeder extends Seeder
         foreach ($definicoes as $role => [$login, $nome, $categoria, $conselho, $numero]) {
             $usuario = User::query()->updateOrCreate(['login' => $login], [
                 'name' => $nome,
-                'email' => "{$login}@pr-saude.test",
+                'email' => "{$login}@prsaude.com",
                 'password' => self::SENHA,
                 'tipo' => $role === 'admin' ? 'ADMIN' : 'PROFISSIONAL',
                 'senha_provisoria' => false,
@@ -76,7 +76,7 @@ final class DemonstracaoSeeder extends Seeder
             $equipe[$role] = Profissional::withTrashed()->updateOrCreate(['user_id' => $usuario->id], [
                 'unidade_id' => $unidade->id,
                 'nome_completo' => $nome,
-                'matricula' => 'DEMO-'.str_pad((string) (count($equipe) + 1), 2, '0', STR_PAD_LEFT),
+                'matricula' => 'DEMO-' . str_pad((string) (count($equipe) + 1), 2, '0', STR_PAD_LEFT),
                 'categoria' => $categoria,
                 'conselho_tipo' => $conselho,
                 'conselho_numero' => $numero,
@@ -100,12 +100,36 @@ final class DemonstracaoSeeder extends Seeder
     private function pacientes(User $recepcao): array
     {
         $nomes = [
-            'Ana Paula Ribeiro', 'Bruno Martins', 'Camila Souza', 'Daniel Oliveira', 'Eduarda Santos',
-            'Felipe Costa', 'Gabriela Almeida', 'Henrique Rocha', 'Isabela Ferreira', 'João Pedro Lima',
-            'Karen Nascimento', 'Lucas Barbosa', 'Mariana Cardoso', 'Nicolas Pereira', 'Olívia Gomes',
-            'Paulo Henrique Silva', 'Queila Moreira', 'Renato Alves', 'Sofia Carvalho', 'Tiago Monteiro',
-            'Úrsula Freitas', 'Victor Hugo Araújo', 'Wagner Mendes', 'Yasmin Fernandes', 'Zilda Correia',
-            'Alice Moraes', 'Bento Teixeira', 'Cecília Castro', 'Davi Ramos', 'Estela Pires',
+            'Ana Paula Ribeiro',
+            'Bruno Martins',
+            'Camila Souza',
+            'Daniel Oliveira',
+            'Eduarda Santos',
+            'Felipe Costa',
+            'Gabriela Almeida',
+            'Henrique Rocha',
+            'Isabela Ferreira',
+            'João Pedro Lima',
+            'Karen Nascimento',
+            'Lucas Barbosa',
+            'Mariana Cardoso',
+            'Nicolas Pereira',
+            'Olívia Gomes',
+            'Paulo Henrique Silva',
+            'Queila Moreira',
+            'Renato Alves',
+            'Sofia Carvalho',
+            'Tiago Monteiro',
+            'Úrsula Freitas',
+            'Victor Hugo Araújo',
+            'Wagner Mendes',
+            'Yasmin Fernandes',
+            'Zilda Correia',
+            'Alice Moraes',
+            'Bento Teixeira',
+            'Cecília Castro',
+            'Davi Ramos',
+            'Estela Pires',
         ];
         $cadastrar = app(CadastrarPacienteAction::class);
         $pacientes = [];
@@ -116,13 +140,15 @@ final class DemonstracaoSeeder extends Seeder
                 'cpf' => $this->cpf(310000000 + $indice),
                 'data_nascimento' => CarbonImmutable::parse('1950-01-15')->addMonths($indice * 11)->toDateString(),
                 'sexo' => $indice % 2 === 0 ? 'FEMININO' : 'MASCULINO',
-                'nome_mae' => 'Responsável de '.$nome,
-                'telefone' => '4199'.str_pad((string) $indice, 7, '0', STR_PAD_LEFT),
+                'nome_mae' => 'Responsável de ' . $nome,
+                'telefone' => '4199' . str_pad((string) $indice, 7, '0', STR_PAD_LEFT),
                 'municipio' => 'Curitiba',
                 'uf' => 'PR',
                 'observacoes' => 'Paciente de demonstração.',
                 'alergias' => $indice % 7 === 0 ? [[
-                    'substancia' => 'Dipirona sódica', 'gravidade' => 'GRAVE', 'reacao' => 'Urticária e falta de ar.',
+                    'substancia' => 'Dipirona sódica',
+                    'gravidade' => 'GRAVE',
+                    'reacao' => 'Urticária e falta de ar.',
                 ]] : [],
             ], $recepcao);
         }
@@ -144,7 +170,9 @@ final class DemonstracaoSeeder extends Seeder
             foreach (array_slice($pacientes, 0, 15) as $indice => $paciente) {
                 CarbonImmutable::setTestNow($base->addMinutes($indice * 12));
                 $atendimento = $abrir->execute(
-                    $paciente, $unidade, $equipe['recepcao']->user,
+                    $paciente,
+                    $unidade,
+                    $equipe['recepcao']->user,
                     sintomasEntrada: ['Dor abdominal', 'Febre e mal-estar', 'Tontura', 'Queda da própria altura'][$indice % 4],
                 );
 
@@ -154,7 +182,9 @@ final class DemonstracaoSeeder extends Seeder
 
                 CarbonImmutable::setTestNow(CarbonImmutable::now()->addMinutes(4));
                 $triar->execute(
-                    $atendimento, 2 + ($indice % 4), $equipe['enfermeiro_triagem']->user,
+                    $atendimento,
+                    2 + ($indice % 4),
+                    $equipe['enfermeiro_triagem']->user,
                     'Queixa principal registrada para demonstração.',
                     'Classificação conforme protocolo institucional.',
                     ['temperatura' => 36.5 + ($indice % 4) / 10, 'frequencia_cardiaca' => 72 + $indice, 'saturacao_o2' => 96],
@@ -182,7 +212,9 @@ final class DemonstracaoSeeder extends Seeder
                 foreach ($destinos[$indice] ?? [] as $destino) {
                     CarbonImmutable::setTestNow(CarbonImmutable::now()->addMinutes(5));
                     $atendimento = $alterar->execute(
-                        $atendimento->fresh(), $destino, $equipe['medico']->user,
+                        $atendimento->fresh(),
+                        $destino,
+                        $equipe['medico']->user,
                         observacao: 'Evolução de demonstração.',
                         desfecho: $destino === StatusAtendimento::Finalizado ? 'ALTA' : null,
                     );
@@ -205,8 +237,8 @@ final class DemonstracaoSeeder extends Seeder
 
             return $resto === 10 ? 0 : $resto;
         };
-        $dez = $nove.$digito($nove, 10);
+        $dez = $nove . $digito($nove, 10);
 
-        return $dez.$digito($dez, 11);
+        return $dez . $digito($dez, 11);
     }
 }
