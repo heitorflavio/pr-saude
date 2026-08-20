@@ -136,3 +136,93 @@ it('chamar respeita RN-12: quem nao responde pelo atendimento nao chama', functi
 
     expect($this->atendimento->fresh()->status)->toBe(StatusAtendimento::AguardandoAtendimento);
 });
+
+/*
+|--------------------------------------------------------------------------
+| O card so vira link para quem pode executar o ato
+|--------------------------------------------------------------------------
+|
+| Regressao: o card de exames era exibido a quem tem `exame.ler_solicitacao`
+| -- enfermeiro assistencial e laboratorio -- mas apontava para o formulario de
+| solicitacao, que a doc 2.3 reserva ao medico. O usuario via o botao, clicava,
+| e batia num 403 que nao explicava nada.
+*/
+
+it('nao oferece Solicitar exame a quem nao pode solicitar', function () {
+    $enfermeiro = Profissional::factory()->create([
+        'unidade_id' => $this->unidade->id,
+        'categoria' => 'ENFERMEIRO',
+    ]);
+    $enfermeiro->user->assignRole('enfermeiro_assistencial');
+    ProfissionalDisponibilidade::factory()->create([
+        'profissional_id' => $enfermeiro->user_id,
+        'situacao' => 'DISPONIVEL',
+        'fim_em' => null,
+    ]);
+    $usuario = $enfermeiro->user->fresh();
+
+    $exames = app(PainelAtendimentoService::class)->modulos($this->atendimento, $usuario)['exames'];
+
+    // Ele precisa SABER que ha exames -- e nao pode receber um link que devolve 403.
+    expect($exames['liberado'])->toBeTrue()
+        ->and($exames['acao_liberada'])->toBeFalse();
+
+    // A prova de que o link estaria quebrado: a rota nega mesmo.
+    $this->actingAs($usuario)
+        ->get(route('exames.create', $this->atendimento))
+        ->assertForbidden();
+});
+
+it('oferece Solicitar exame ao medico responsavel, e a rota aceita', function () {
+    $exames = app(PainelAtendimentoService::class)->modulos($this->atendimento, $this->autor)['exames'];
+
+    expect($exames['acao_liberada'])->toBeTrue()
+        ->and($exames['acao'])->toBe('Solicitar exame');
+
+    $this->actingAs($this->autor)
+        ->get(route('exames.create', $this->atendimento))
+        ->assertOk();
+});
+
+it('o rotulo do card acompanha o que a pessoa pode fazer, nao o que ela ve', function () {
+    $tecnico = Profissional::factory()->create([
+        'unidade_id' => $this->unidade->id,
+        'categoria' => 'TECNICO_ENFERMAGEM',
+    ]);
+    $tecnico->user->assignRole('tecnico_enfermagem');
+
+    $modulos = app(PainelAtendimentoService::class)->modulos($this->atendimento, $tecnico->user->fresh());
+
+    // O tecnico le prescricao e administra, mas nao prescreve (doc 2.3).
+    expect($modulos['medicamentos']['acao'])->toBe('Ver prescrições')
+        ->and($modulos['medicamentos']['acao_liberada'])->toBeTrue();
+
+    expect($modulos['triagem']['acao'])->toBe('Ver triagem');
+});
+
+it('a pendencia explica para todos, mas so oferece o botao a quem pode agir', function () {
+    $this->atendimento->update(['status' => StatusAtendimento::AguardandoExame]);
+
+    $enfermeiro = Profissional::factory()->create([
+        'unidade_id' => $this->unidade->id,
+        'categoria' => 'ENFERMEIRO',
+    ]);
+    $enfermeiro->user->assignRole('enfermeiro_assistencial');
+    $usuario = $enfermeiro->user->fresh();
+
+    $painel = app(PainelAtendimentoService::class);
+    $atendimento = $this->atendimento->fresh();
+    $pendencia = $painel->pendencia($atendimento, $painel->modulos($atendimento, $usuario));
+
+    /*
+     * O enfermeiro e quem vai ouvir a pergunta do paciente: ele precisa da explicacao.
+     * Trocar a confusao "nada acontece" por um 403 nao seria progresso.
+     */
+    expect($pendencia)->not->toBeNull()
+        ->and($pendencia['texto'])->toContain('nenhum exame foi solicitado')
+        ->and($pendencia['acao_liberada'])->toBeFalse();
+
+    $doMedico = $painel->pendencia($atendimento, $painel->modulos($atendimento, $this->autor));
+
+    expect($doMedico['acao_liberada'])->toBeTrue();
+});

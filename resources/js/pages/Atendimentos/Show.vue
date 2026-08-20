@@ -37,7 +37,10 @@ interface Modulo {
     total: number;
     resumo: string;
     alerta?: boolean;
+    /** Mostra o card. */
     liberado: boolean;
+    /** Torna o card clicável — quem só lê não recebe um link que devolve 403. */
+    acao_liberada: boolean;
 }
 
 const props = defineProps<{
@@ -45,7 +48,7 @@ const props = defineProps<{
     paciente: { user_id: number; nome: string; data_nascimento: string | null; idade: string | null };
     alergias: Alergia[];
     modulos: Record<string, Modulo>;
-    pendencia: { texto: string; acao: string; href: string } | null;
+    pendencia: { texto: string; acao: string; href: string; acao_liberada: boolean } | null;
     linhaDoTempo: EventoLinhaDoTempo[];
     transicoesPermitidas: { valor: string; rotulo: string; terminal: boolean }[];
     desfechos: string[];
@@ -129,7 +132,8 @@ const finalizar = () => formFinalizar.post(route('atendimentos.finalizar', props
                     <TriangleAlert class="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                     {{ pendencia.texto }}
                 </p>
-                <Link :href="pendencia.href">
+                <!-- A explicação é para todos; o botão, só para quem pode executar. -->
+                <Link v-if="pendencia.acao_liberada" :href="pendencia.href">
                     <Button type="button" size="sm">{{ pendencia.acao }}</Button>
                 </Link>
             </div>
@@ -162,7 +166,10 @@ const finalizar = () => formFinalizar.post(route('atendimentos.finalizar', props
                         </p>
                     </div>
 
-                    <Link :href="modulo.href" class="text-sm font-medium underline underline-offset-4">{{ modulo.acao }}</Link>
+                    <Link v-if="modulo.acao_liberada" :href="modulo.href" class="text-sm font-medium underline underline-offset-4">
+                        {{ modulo.acao }}
+                    </Link>
+                    <p v-else class="text-xs text-muted-foreground">Somente leitura no seu perfil.</p>
                 </article>
             </section>
 

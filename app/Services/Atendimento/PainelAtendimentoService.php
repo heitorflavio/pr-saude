@@ -41,6 +41,26 @@ final class PainelAtendimentoService
      */
     public function modulos(Atendimento $atendimento, ?User $usuario = null): array
     {
+        /*
+         * `liberado` decide se o card aparece; `acao_liberada`, se ele vira link.
+         *
+         * Os dois existem porque não são a mesma pergunta, e tratá-los como uma só
+         * produziu um 403: o card de exames era exibido a quem tem `exame.ler_solicitacao`
+         * — enfermeiro assistencial e laboratório — mas apontava para o formulário de
+         * solicitação, que a doc §2.3 reserva ao médico. O usuário via o botão, clicava,
+         * e batia num 403 que não explicava nada.
+         *
+         * A regra geral: o rótulo e o link seguem o que a pessoa pode FAZER, não o que
+         * ela pode ver.
+         */
+        $pode = fn (string $permissao): bool => $usuario?->can($permissao) ?? false;
+
+        $podeTriar = $pode('triagem.classificar');
+        $podeEscreverProntuario = $pode('prontuario.criar_nota_medica') || $pode('prontuario.criar_evolucao_enfermagem');
+        $podeLerProntuario = $pode('prontuario.ler_nota_medica') || $pode('prontuario.ler_evolucao_enfermagem');
+        $podePrescrever = $pode('prescricao.criar');
+        $podeSolicitarExame = $pode('exame.solicitar');
+
         $filaItem = $atendimento->filaItemAtivo();
 
         $dosesPendentes = DB::table('vw_doses_pendentes')
@@ -53,10 +73,15 @@ final class PainelAtendimentoService
             'triagem' => [
                 'rotulo' => 'Triagem',
                 'href' => route('triagem.edit', $atendimento->id),
-                'acao' => $atendimento->classificacao_risco_id === null ? 'Classificar risco' : 'Reavaliar',
+                'acao' => $podeTriar
+                    ? ($atendimento->classificacao_risco_id === null ? 'Classificar risco' : 'Reavaliar')
+                    : 'Ver triagem',
                 'total' => $atendimento->triagens()->count(),
                 'resumo' => $atendimento->classificacaoRisco?->nome ?? 'Sem classificação de risco',
-                'liberado' => $usuario?->can('triagem.classificar') ?? false,
+                // A tela de triagem autoriza por `view` no atendimento: quem lê o status,
+                // lê a triagem. Classificar é que exige `triagem.classificar`.
+                'liberado' => $pode('atendimento.ler_status'),
+                'acao_liberada' => $pode('atendimento.ler_status'),
             ],
             'fila' => [
                 'rotulo' => 'Fila',
@@ -64,21 +89,23 @@ final class PainelAtendimentoService
                 'acao' => 'Abrir a fila',
                 'total' => $filaItem !== null ? 1 : 0,
                 'resumo' => $this->resumoDaFila($atendimento, $filaItem?->situacao),
-                'liberado' => $usuario?->can('fila.ler') ?? false,
+                'liberado' => $pode('fila.ler'),
+                'acao_liberada' => $pode('fila.ler'),
             ],
             'prontuario' => [
                 'rotulo' => 'Prontuário',
                 'href' => route('prontuario.show', $atendimento->id),
-                'acao' => 'Registrar evolução',
+                'acao' => $podeEscreverProntuario ? 'Registrar evolução' : 'Abrir prontuário',
                 'total' => $atendimento->registrosClinicos()->count(),
                 'resumo' => $this->pluralizar($atendimento->registrosClinicos()->count(), 'registro', 'registros'),
-                'liberado' => ($usuario?->can('prontuario.ler_nota_medica') ?? false)
-                    || ($usuario?->can('prontuario.ler_evolucao_enfermagem') ?? false),
+                'liberado' => $podeLerProntuario,
+                // A tela é de leitura; o formulário dentro dela é que depende da escrita.
+                'acao_liberada' => $podeLerProntuario,
             ],
             'medicamentos' => [
                 'rotulo' => 'Medicamentos',
                 'href' => route('medicamentos.show', $atendimento->id),
-                'acao' => 'Prescrever',
+                'acao' => $podePrescrever ? 'Prescrever' : 'Ver prescrições',
                 'total' => $atendimento->prescricoes()->where('status', 'VIGENTE')->count(),
                 'resumo' => $this->resumoDeMedicamentos(
                     $atendimento->prescricoes()->where('status', 'VIGENTE')->count(),
@@ -86,7 +113,10 @@ final class PainelAtendimentoService
                     $dosesPendentes->where('atrasada', 1)->count(),
                 ),
                 'alerta' => $dosesPendentes->where('atrasada', 1)->count() > 0,
-                'liberado' => $usuario?->can('prescricao.ler') ?? false,
+                'liberado' => $pode('prescricao.ler'),
+                // `medicamentos.show` é a lista do atendimento, legível por quem lê
+                // prescrição; prescrever é um formulário condicional dentro dela.
+                'acao_liberada' => $pode('prescricao.ler'),
             ],
             'exames' => [
                 'rotulo' => 'Exames',
@@ -94,7 +124,13 @@ final class PainelAtendimentoService
                 'acao' => 'Solicitar exame',
                 'total' => $solicitacoes->count(),
                 'resumo' => $this->resumoDeExames($solicitacoes),
-                'liberado' => $usuario?->can('exame.ler_solicitacao') ?? false,
+                'liberado' => $pode('exame.ler_solicitacao'),
+                /*
+                 * O único módulo cujo destino é um formulário de escrita, e não uma tela
+                 * de leitura: não existe listagem de exames por atendimento. Por isso o
+                 * card informa a todos e só vira link para quem pode solicitar.
+                 */
+                'acao_liberada' => $podeSolicitarExame,
             ],
         ];
     }
@@ -107,7 +143,7 @@ final class PainelAtendimentoService
      * tela, com o link do passo que falta, é a diferença entre um fluxo e um beco.
      *
      * @param  array<string, array<string, mixed>>  $modulos
-     * @return array{texto: string, acao: string, href: string}|null
+     * @return array{texto: string, acao: string, href: string, acao_liberada: bool}|null
      */
     public function pendencia(Atendimento $atendimento, array $modulos): ?array
     {
@@ -144,8 +180,14 @@ final class PainelAtendimentoService
     }
 
     /**
+     * A explicação é para todo mundo; o botão, só para quem pode executar o ato.
+     *
+     * O enfermeiro precisa entender por que "aguardando exame" não gerou pedido nenhum
+     * — ele é quem vai ouvir a pergunta do paciente. Oferecer-lhe um botão que devolve
+     * 403 troca uma confusão por outra.
+     *
      * @param  array<string, mixed>  $modulo
-     * @return array{texto: string, acao: string, href: string}
+     * @return array{texto: string, acao: string, href: string, acao_liberada: bool}
      */
     private function aviso(string $texto, array $modulo): array
     {
@@ -153,6 +195,7 @@ final class PainelAtendimentoService
             'texto' => $texto,
             'acao' => (string) $modulo['acao'],
             'href' => (string) $modulo['href'],
+            'acao_liberada' => (bool) ($modulo['acao_liberada'] ?? false),
         ];
     }
 
