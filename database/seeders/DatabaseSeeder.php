@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             CatalogoSeeder::class,
             // Depois dos catálogos, porque precisa da role `admin`.
             UsuarioAdministradorSeeder::class,
+            DemonstracaoSeeder::class,
         ]);
     }
 }

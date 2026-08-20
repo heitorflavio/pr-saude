@@ -174,7 +174,8 @@ it('nao imprime CPF, CNS nem endereco na pulseira', function () {
         ->and($html)->not->toContain('123456789012345')
         ->and($html)->not->toContain('Rua das Acacias')
         // O que DEVE aparecer: os dois identificadores.
-        ->and($html)->toContain(mb_strtoupper($paciente->nome_completo))
+        // O template escapa corretamente apóstrofos e outros caracteres HTML do nome.
+        ->and($html)->toContain(e(mb_strtoupper($paciente->nome_completo)))
         ->and($html)->toContain($paciente->data_nascimento->format('d/m/Y'));
 });
 

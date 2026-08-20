@@ -14,7 +14,10 @@
     </testsuites>
     <source>
         <include>
-            <directory>app</directory>
+            <!-- RNF-19 mede o núcleo de domínio, não controllers nem infraestrutura. -->
+            <directory>app/Actions</directory>
+            <directory>app/Services</directory>
+            <directory>app/Enums</directory>
         </include>
     </source>
     <php>

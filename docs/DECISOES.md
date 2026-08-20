@@ -1170,3 +1170,33 @@ lado, o copiaria para histórico, proxies e logs HTTP.
 tela de justificativa e, após o POST, aceita o motivo uma única vez somente no mesmo
 destino. A autorização é consumida na releitura e tanto a quebra quanto a leitura ficam
 registradas; nenhuma justificativa circula na URL.
+
+---
+
+## D-55 · A cobertura normativa exclui a camada de entrega
+
+**Origem:** RNF-19 · **Status:** ✅ aplicada · **2026-08-20**
+
+O requisito nomeia explicitamente `Actions`, `Services` e `Enums`. Medir todo `app/`
+misturaria regra de negócio com controllers, middleware, eventos e models, produzindo um
+número diferente daquele pedido e sujeito à quantidade de código de integração.
+
+**Decisão.** O filtro de cobertura do `phpunit.xml` contém somente os três diretórios
+normativos. A suíte completa, executada com Xdebug 3.5.3 em modo coverage, atingiu 93,0%
+de linhas. O comando usa `--min=80`, de modo que regressão abaixo do piso falha o CI em
+vez de virar observação documental.
+
+---
+
+## D-56 · O seed demonstra o domínio pelas mesmas Actions da aplicação
+
+**Origem:** regra de arquitetura × Fase 13 · **Status:** ✅ aplicada · **2026-08-20**
+
+Factories criariam rapidamente os 15 episódios, mas escreveriam triagem, fila e status
+por fora das portas transacionais do domínio. Um ambiente “bonito” que contorna as
+invariantes não prova que a aplicação é navegável.
+
+**Decisão.** `DemonstracaoSeeder` usa `CadastrarPacienteAction`,
+`AbrirAtendimentoAction`, `RealizarTriagemAction`, `AtribuirProfissionalAction` e
+`AlterarStatusAction`. Assim, a carga gera histórico, auditoria, fila e eventos como uma
+operação real. Apenas catálogos e cadastros administrativos são gravados diretamente.

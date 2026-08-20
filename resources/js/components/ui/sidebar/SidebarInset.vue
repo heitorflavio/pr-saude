@@ -9,6 +9,8 @@ const props = defineProps<{
 
 <template>
     <main
+        id="conteudo-principal"
+        tabindex="-1"
         :class="
             cn(
                 'relative flex min-h-svh flex-1 flex-col bg-background',

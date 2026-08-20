@@ -18,11 +18,12 @@ testes que passam e as pendências.
 | 8 | Prontuário e evolução | ✅ |
 | 9 | Medicamentos | ✅ |
 | 10 | Clínica e exames | ✅ |
-| 11 | Portal do paciente | ⬜ próxima |
-| 12 | Auditoria e indicadores | ⬜ |
-| 13 | Fechamento | ⬜ |
+| 11 | Portal do paciente | ✅ |
+| 12 | Auditoria e indicadores | ✅ |
+| 13 | Fechamento | ✅ |
 
-**Testes:** `php artisan test` → **294 passando, 1606 asserções** (~31 s, MySQL).
+**Testes:** `php artisan test` → **319 passando, 1753 asserções** (MySQL).
+**Cobertura do núcleo:** Actions + Services + Enums → **93,0%**.
 
 ---
 
@@ -874,3 +875,44 @@ asserções**; build Vite e lint verdes.
 
 `IndicadoresTest` acrescenta **4 testes e 45 asserções**. Suíte completa: **317 testes,
 1727 asserções**; build Vite e lint verdes.
+
+---
+
+## ✅ Fase 13 — Fechamento (2026-08-20)
+
+### Entregue
+
+- Cobertura configurada em `phpunit.xml` exatamente para `app/Actions`, `app/Services` e
+  `app/Enums`; execução integral com Xdebug 3.5.3 mediu **93,0%**, acima dos 80% da RNF-19.
+- Auditoria estática de acessibilidade: prioridade sempre traz rótulo e ícone além da cor;
+  alertas têm texto; foco visível global, salto para o conteúdo e preferência por movimento
+  reduzido foram acrescentados aos layouts da equipe e do paciente.
+- `docs/privilegios.sql` define usuários MySQL de privilégio mínimo e remove UPDATE/DELETE
+  das tabelas append-only; `docs/IMPLANTACAO.md` cobre infraestrutura, LGPD, publicação,
+  restauração e validação final.
+- `README.md` documenta requisitos, setup, schemas permitidos, testes, seeds, controles e
+  as oito contas de demonstração.
+- `DemonstracaoSeeder` cria deterministicamente 1 unidade, 8 profissionais cobrindo todas
+  as roles, 30 pacientes, 15 atendimentos em 8 estados e filas povoadas. As escritas
+  clínicas passam pelas Actions e o seeder é idempotente.
+- `migrate:fresh --seed` foi executado do zero no schema `prsaude` e concluiu com sucesso.
+- Dependências revisadas: `composer audit` e `npm audit --omit=dev` encerram com zero
+  vulnerabilidades; o lockfile npm foi atualizado para remover 18 alertas transitivos.
+
+### Definition of done
+
+| Critério | Estado |
+|---|---|
+| Cobertura do núcleo ≥ 80% | ✅ 93,0% |
+| Nenhuma prioridade depende apenas de cor | ✅ |
+| Foco visível, skip link e controles nativos de teclado | ✅ |
+| Privilégios mínimos e checklist de implantação | ✅ |
+| Ambiente limpo reproduzível com seed | ✅ |
+| Suíte, lint e build | ✅ |
+
+### Testes e verificação
+
+`FechamentoTest` acrescenta **2 testes e 26 asserções**. Suíte completa: **319 testes,
+1753 asserções**. O teste visual interativo no navegador integrado não pôde ser executado
+porque nenhum navegador estava conectado à sessão; a validação manual nos temas claro e
+escuro permanece explicitada no checklist de implantação.
