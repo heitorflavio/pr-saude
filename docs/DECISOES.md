@@ -1200,3 +1200,25 @@ invariantes não prova que a aplicação é navegável.
 `AbrirAtendimentoAction`, `RealizarTriagemAction`, `AtribuirProfissionalAction` e
 `AlterarStatusAction`. Assim, a carga gera histórico, auditoria, fila e eventos como uma
 operação real. Apenas catálogos e cadastros administrativos são gravados diretamente.
+
+---
+
+## D-57 · A confiança no proxy TLS é declarada por ambiente
+
+**Origem:** operação (demonstração via túnel) · **Status:** ✅ aplicada · **2026-08-20**
+
+Servida por um túnel `ngrok`, a página chega ao navegador em https, mas o PHP recebe a
+requisição em http — o TLS termina no túnel. O gerador de URL usa o esquema da
+requisição, então as tags do Vite saíam em `http://…/build/…` dentro de uma página
+https e o navegador bloqueava folha de estilo e script como *mixed content*: a aplicação
+abria sem CSS e sem JavaScript. Forçar `URL::forceScheme('https')` resolveria a tela e
+mentiria para o resto do sistema, que continuaria vendo `$request->secure() === false`
+em cookie, redirecionamento e URL assinada.
+
+**Decisão.** `config/trustedproxy.php` expõe `TRUSTED_PROXIES`, lido pelo
+`TrustProxies` do framework; com o proxy declarado, `X-Forwarded-Proto` e
+`X-Forwarded-Host` passam a valer. O padrão é vazio, e não `*`, porque o mesmo pacote de
+cabeçalhos carrega o `X-Forwarded-For` que vira o IP gravado na trilha de auditoria (RF-80):
+confiar em qualquer origem transformaria esse IP em campo controlado pelo cliente. No
+ambiente local o valor é `127.0.0.1,::1`, os endereços com que o agente do túnel alcança
+o Herd.
