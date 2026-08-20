@@ -866,3 +866,50 @@ que cada teste escreve continua sendo revertido normalmente.
 teste que conta usuários não deve depender de quem o seeder de ambiente criou. A
 separação também deixa explícito o que é "carga sem a qual o sistema não funciona" e o
 que é "conta para conseguir entrar".
+
+---
+
+## D-38 · A ponderação de carga é linear, e a própria doc reconhece o limite
+
+**Origem:** limitação apontada na doc §7.4 · **Status:** ⚠️ registrada para calibração ·
+**2026-08-18**
+
+A carga ponderada usa `Σ (6 − peso_ordenacao)`: vermelho 5, laranja 4, amarelo 3,
+verde 2, azul 1. A implementação segue a view `vw_carga_profissional` do `schema.sql`,
+sem alteração — o teste confirma os 11 do exemplo da doc (1 laranja + 1 amarelo +
+2 verdes).
+
+**O limite, que a própria doc §7.4 explicita:** cinco pacientes azuis somam carga 5 —
+exatamente a carga de **um** vermelho. Isso subestima o esforço de um caso crítico, que
+na prática consome mais que cinco atendimentos leves.
+
+Uma ponderação exponencial (`2^(5−peso)`: azul 1, verde 2, amarelo 4, laranja 8,
+vermelho 16) refletiria melhor a realidade assistencial. A escala linear foi mantida por
+ser legível ao usuário — a carga aparece na tela e precisa ser interpretável por quem
+distribui os pacientes.
+
+**A troca é de uma linha na view.** Fica como ponto de calibração para validação com a
+equipe do hospital, não como dívida técnica.
+
+---
+
+## D-39 · A estimativa de espera tem uma cascata de fallback explícita
+
+**Origem:** decisão de implementação · **Status:** ✅ aplicada · **2026-08-18**
+
+A doc §7.4 pede "média histórica de duração de atendimento do próprio profissional por
+cor — uma média móvel dos últimos 30 dias, não uma constante", mas não diz o que fazer
+quando não há histórico. Numa instalação nova, isso é o caso de **todos** os
+profissionais.
+
+**Decisão.** Cascata em três níveis: (1) média do próprio profissional para aquela cor
+nos últimos 30 dias; (2) média da instituição para aquela cor; (3) **20 minutos**, um
+número redondo e visivelmente aproximado.
+
+O padrão é deliberadamente grosseiro. Uma constante com aparência de precisão — "17,4
+min" — esconderia a ausência de dado atrás de uma falsa exatidão, e a doc é explícita
+sobre a estimativa precisar ser honesta.
+
+**A duração vem de `fila_item`** (`chamado_em` → `saiu_em`), não do atendimento inteiro:
+é o tempo que aquele profissional gastou com aquele paciente, e não o tempo de
+permanência que inclui exame, medicação e observação.

@@ -14,15 +14,15 @@ testes que passam e as pendências.
 | 4 | Token, QR Code e pulseira | ✅ |
 | 5 | Atendimento e máquina de estados | ✅ |
 | 6 | Triagem e classificação de risco | ✅ |
-| 7 | Fila e painel do profissional | ⬜ próxima |
-| 8 | Prontuário e evolução | ⬜ |
+| 7 | Fila e painel do profissional | ✅ |
+| 8 | Prontuário e evolução | ⬜ próxima |
 | 9 | Medicamentos | ⬜ |
 | 10 | Clínica e exames | ⬜ |
 | 11 | Portal do paciente | ⬜ |
 | 12 | Auditoria e indicadores | ⬜ |
 | 13 | Fechamento | ⬜ |
 
-**Testes:** `php artisan test` → **216 passando, 1350 asserções** (~24 s, MySQL).
+**Testes:** `php artisan test` → **234 passando, 1418 asserções** (~26 s, MySQL).
 
 ---
 
@@ -585,18 +585,67 @@ Corrigido com `$dateFormat = 'Y-m-d H:i:s.u'` nos nove models.
 
 ---
 
-## ⬜ Fase 7 — Fila e painel do profissional
+## ✅ Fase 7 — Fila e painel do profissional (2026-08-18)
+
+### Entregue
+
+**Leitura direto das views.** `PainelFilaService` consome `vw_fila_ordenada` e
+`vw_carga_profissional`: a ordenação da RN-10, a posição por `ROW_NUMBER()` e a carga
+ponderada já estão resolvidas lá. Reimplementá-las em PHP criaria uma segunda fonte de
+verdade, e a divergência apareceria como dois profissionais vendo ordens diferentes da
+mesma fila.
+
+- `AtribuirProfissionalAction` — **reaproveita** o item da fila geral, só trocando o
+  dono. Criar item novo reiniciaria `entrou_em` e o paciente perderia o tempo esperado.
+- `TransferirFilaAction` — cria item novo encadeado por `transferido_de_id`, mas
+  **copia** `entrou_em`. O histórico mostra o remanejamento; o paciente não paga por ele.
+- `EstimadorEsperaService` — média móvel de 30 dias do próprio profissional por cor, com
+  cascata de fallback explícita (D-39).
+- `Fila/Index.vue` com `usePoll(10000, { only: ['fila'] })` (RF-34, RNF-03) — o `only` é
+  o que torna o polling barato e o que a doc §7.7 aponta como substituível por WebSocket.
+- `Fila/Atribuir.vue` reproduzindo o mockup da doc §7.4: disponibilidade, quantidade,
+  composição por cor, carga ponderada, espera estimada e a marca de sugerido.
+
+### Definition of done
+
+| Critério | Estado |
+|---|---|
+| Cenário da doc §5.4.1: cinco pacientes em ordem inversa, fila correta | ✅ |
+| Carga ponderada de 1 laranja + 1 amarelo + 2 verdes = 11 | ✅ |
+| Transferência entre filas não penaliza a posição | ✅ |
+
+O teste da §5.4.1 é literal: Ana Paula, que chegou **por último**, sai em primeiro por
+ser laranja; e entre os dois verdes o desempate é por chegada — 149 min antes de 39 min.
+
+### Testes
+
+`FilaTest` (18) — o cenário da doc, tempo-alvo excedido por item, carga e composição,
+sugestão do RF-28, exclusão de quem está fora de plantão, contagem de preteridos do
+UC-05 passo 6, atribuição sem recarimbar `entrou_em`, transferência preservando posição,
+e a média móvel ignorando histórico fora da janela de 30 dias.
+
+### Pendências
+
+1. **Ponderação linear** (D-38): cinco azuis somam a carga de um vermelho. A própria doc
+   §7.4 aponta o limite e sugere `2^(5−peso)`. Troca de uma linha na view — fica como
+   ponto de calibração com a equipe do hospital.
+2. `EmergenciaDetectada` e `ReimpressaoPulseiraNecessaria` seguem sem ouvinte, por
+   projeto (doc §7.7).
+
+---
+
+## ⬜ Fase 8 — Prontuário e evolução
 
 Escopo previsto:
 
-- [ ] `AtribuirProfissionalAction` e `TransferirFilaAction` — a transferência **preserva
-      `entrou_em`** e cria novo `fila_item` com `transferido_de_id`
-- [ ] Tela de atribuição (UC-05) com disponibilidade, quantidade aguardando, composição
-      da fila por cor, carga ponderada e espera estimada — mockup da doc §7.4
-- [ ] Sugestão automática do profissional de menor carga ponderada (RF-28)
-- [ ] Painel do profissional (RF-29) e sinalização de tempo-alvo excedido (RF-33)
-- [ ] `usePoll(10000, { only: ['fila'] })` (RF-34, RNF-03)
-- [ ] Estimativa de espera pela média móvel de 30 dias do próprio profissional por cor
-- [ ] Teste do cenário da doc §5.4.1: cinco pacientes em ordem inversa à prioridade
-- [ ] Teste: carga ponderada de 1 laranja + 1 amarelo + 2 verdes = 11
-- [ ] Teste: transferência entre filas não penaliza a posição
+- [ ] `RegistrarNotaClinicaAction` com SOAP em quatro colunas (doc §9.2)
+- [ ] `RetificarRegistroAction` criando `ADENDO` e mantendo o original visível (doc §9.3)
+- [ ] `HashEncadeadoService` com forma canônica de JSON, `hash_anterior` e
+      `verificarCadeia()` (doc §9.4)
+- [ ] Snapshot de `autor_nome` e `autor_conselho` em cada registro
+- [ ] Diagnósticos com CID-10 e natureza; campo `sigiloso` com auditoria (doc §9.6)
+- [ ] Prontuário consolidado atravessando todos os atendimentos (RF-51) e export PDF (RF-52)
+- [ ] Job agendado de verificação de integridade da cadeia
+- [ ] Teste: após retificação, o conteúdo original permanece inalterado
+- [ ] Teste: alteração por fora da aplicação é detectada como `CONTEUDO_ALTERADO`;
+      remoção de registro do meio, como `ELO_ROMPIDO`
