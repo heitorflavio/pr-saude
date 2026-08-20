@@ -5,6 +5,9 @@ import path from 'path';
 import tailwindcss from 'tailwindcss';
 import { defineConfig } from 'vite';
 
+const vitePort = Number(process.env.VITE_PORT ?? 5173);
+const viteHmrHost = process.env.VITE_HMR_HOST ?? 'localhost';
+
 export default defineConfig({
     plugins: [
         laravel({
@@ -28,6 +31,16 @@ export default defineConfig({
     css: {
         postcss: {
             plugins: [tailwindcss, autoprefixer],
+        },
+    },
+    server: {
+        host: '0.0.0.0',
+        port: vitePort,
+        strictPort: true,
+        origin: `http://${viteHmrHost}:${vitePort}`,
+        hmr: {
+            host: viteHmrHost,
+            clientPort: vitePort,
         },
     },
 });

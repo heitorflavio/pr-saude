@@ -6,59 +6,73 @@ prontuário imutável, medicamentos, exames, portal do paciente, auditoria e ind
 
 ## Requisitos
 
-- PHP 8.4 com `pdo_mysql`, `mbstring`, `openssl`, `fileinfo` e `gd`
-- Composer 2
-- MySQL 8.0.16 ou superior
-- Node.js 20 ou superior e npm
+- Docker Desktop com integração WSL2 habilitada
+- Uma distribuição Linux no WSL2, como Ubuntu
+
+PHP, Composer, MySQL, Node.js e npm são fornecidos pelos contêineres do Laravel Sail e
+não precisam ser instalados no Windows ou no WSL.
 
 SQLite não é suportado: as invariantes usam `CHECK`, coluna gerada, índices funcionais e
 views com `ROW_NUMBER()` do MySQL.
 
-## Instalação local
+## Instalação no Windows com Laravel Sail
 
-```powershell
-Copy-Item .env.example .env
-composer install
-npm install
-herd php artisan key:generate
-herd php -r "echo 'PULSEIRA_KEY=base64:'.base64_encode(random_bytes(32)).PHP_EOL;"
+1. Baixe e instale o [Docker Desktop](https://www.docker.com/products/docker-desktop/).
+2. No Docker Desktop, habilite a integração com sua distribuição WSL2.
+3. Abra o terminal da distribuição Linux, acesse a pasta do projeto e execute:
+
+```bash
+bash scripts/setup-sail.sh
 ```
 
-Copie a linha `PULSEIRA_KEY` gerada para o `.env`. Essa chave não deve ser rotacionada
-após a emissão de pulseiras: fazê-lo invalida todos os QR Codes existentes.
+O script resolve o primeiro `composer install` com uma imagem Docker temporária, cria o
+`vendor/bin/sail`, inicia PHP e MySQL, gera as chaves locais e executa `npm ci`. Ele não
+apaga nem recria bancos existentes.
 
-Crie apenas os schemas autorizados e configure as credenciais no `.env`:
+Na primeira execução, prepare o banco de demonstração:
 
-```sql
-CREATE DATABASE prsaude CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE DATABASE prsaude_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```bash
+./vendor/bin/sail artisan migrate --seed
 ```
 
-Depois prepare o banco e os assets:
+Windows:
 
-```powershell
-herd php artisan migrate:fresh --seed
-npm run build
+```bash
+docker compose up -d
+docker compose exec laravel.test composer install
+docker compose exec laravel.test npm ci
+docker compose exec laravel.test php artisan migrate --seed
+docker compose restart laravel.test
+docker compose exec -d laravel.test npm run dev
 ```
 
-Com Laravel Herd, a aplicação fica em `https://pr-saude.test`. Sem Herd, execute
-`composer run dev` e use a URL informada pelo servidor.
+A aplicação fica em `http://localhost:8080`. O MySQL é publicado em `localhost:3307`
+apenas para clientes externos; o Laravel usa `mysql:3306` dentro da rede Docker.
+
+Consulte [Sail](docs/SAIL.md) para os comandos diários, solução de problemas e o fluxo
+de bootstrap de um clone sem a pasta `vendor`.
+
+### Alternativa com Laravel Herd
+
+Se optar pelo Herd, instale PHP, Composer, Node.js e MySQL localmente, troque
+`DB_HOST` para `127.0.0.1` e `APP_URL` para `https://pr-saude.test`. Não execute Herd e
+Sail nas mesmas portas ao mesmo tempo.
 
 ## Ambiente de demonstração
 
 `DatabaseSeeder` cria uma unidade, oito profissionais, 30 pacientes e 15 atendimentos em
-estados variados. A senha das contas abaixo é `Demo@2026`:
+estados variados. A senha das contas abaixo é `password`:
 
-| Perfil | Login |
-|---|---|
-| Recepção | `recepcao.demo` |
-| Enfermeiro de triagem | `triagem.demo` |
-| Enfermeiro assistencial | `enfermagem.demo` |
-| Técnico de enfermagem | `tecnico.demo` |
-| Médico | `medico.demo` |
-| Laboratório | `laboratorio.demo` |
-| Administrador | `admin` |
-| Auditor | `auditor.demo` |
+| Perfil                  | Login              |
+| ----------------------- | ------------------ |
+| Recepção                | `recepcao.demo`    |
+| Enfermeiro de triagem   | `triagem.demo`     |
+| Enfermeiro assistencial | `enfermagem.demo`  |
+| Técnico de enfermagem   | `tecnico.demo`     |
+| Médico                  | `medico.demo`      |
+| Laboratório             | `laboratorio.demo` |
+| Administrador           | `admin`            |
+| Auditor                 | `auditor.demo`     |
 
 As contas são exclusivas para ambiente local. Altere ou remova todas antes de publicar.
 O primeiro paciente de demonstração usa CPF `31000000057` e senha inicial `15011950`;
@@ -66,19 +80,18 @@ o primeiro acesso ao portal também exige ler o QR Code da pulseira na ficha do 
 
 ## Testes e qualidade
 
-```powershell
-herd php artisan test
-herd php vendor/bin/pint --test
-npm run lint
-npm run build
+```bash
+./vendor/bin/sail test
+./vendor/bin/sail pint --test
+./vendor/bin/sail npm run lint
+./vendor/bin/sail npm run build
 ```
 
 A cobertura normativa inclui somente `app/Actions`, `app/Services` e `app/Enums`, como
 configurado em `phpunit.xml`, e deve permanecer em 80% ou mais:
 
-```powershell
-$env:XDEBUG_MODE='coverage'
-herd php vendor/bin/pest --coverage --min=80
+```bash
+SAIL_XDEBUG_MODE=coverage ./vendor/bin/sail test --coverage --min=80
 ```
 
 Os testes usam exclusivamente `prsaude_test`. Consulte [DECISOES.md](docs/DECISOES.md)

@@ -38,7 +38,6 @@
              as 18 restricoes CHECK, a coluna gerada ativo_key (RN-07/D-07) e as UNIQUE KEY
              de RN-20. SQLite in-memory nao reproduz nenhuma delas, entao a suite roda no
              mesmo MySQL do desenvolvimento, em um schema proprio. Ver docs/DECISOES.md D-13. -->
-        <env name="DB_CONNECTION" value="mysql"/>
         <env name="DB_DATABASE" value="prsaude_test"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>
