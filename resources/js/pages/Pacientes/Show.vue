@@ -4,11 +4,11 @@ import PainelAlergias from '@/components/sgh/PainelAlergias.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { usePermissoes } from '@/composables/usePermissoes';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { type BreadcrumbItem } from '@/types';
-import { type SharedData } from '@/types';
+import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, useForm, usePage } from '@inertiajs/vue3';
-import { IdCard, KeyRound, LoaderCircle } from 'lucide-vue-next';
+import { IdCard, KeyRound, LoaderCircle, Printer } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
 interface Alergia {
@@ -42,7 +42,12 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: String(props.paciente.nome), href: '#' },
 ];
 
+const { pode } = usePermissoes();
 const mostrarRegularizacao = ref(false);
+
+// UC-01, passo 11: a ficha oferece "Imprimir Pulseira" logo apos o cadastro.
+// Form HTML puro, e nao useForm: a resposta e um PDF, nao uma resposta do Inertia.
+const csrf = computed(() => page.props.csrf_token);
 
 // RN-30: vincula o CPF real preservando todo o histórico do paciente.
 const form = useForm({
@@ -53,8 +58,7 @@ const form = useForm({
 
 const regularizar = () => form.put(route('pacientes.regularizar', props.paciente.user_id));
 
-const mascararCpf = (cpf: unknown) =>
-    typeof cpf === 'string' ? cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '—';
+const mascararCpf = (cpf: unknown) => (typeof cpf === 'string' ? cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '—');
 </script>
 
 <template>
@@ -62,23 +66,36 @@ const mascararCpf = (cpf: unknown) =>
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="mx-auto flex w-full max-w-4xl flex-col gap-6 p-4">
-            <div v-if="status" class="rounded-md bg-green-50 px-4 py-3 text-sm font-medium text-green-900 dark:bg-green-950 dark:text-green-100" role="status">
+            <div
+                v-if="status"
+                class="rounded-md bg-green-50 px-4 py-3 text-sm font-medium text-green-900 dark:bg-green-950 dark:text-green-100"
+                role="status"
+            >
                 {{ status }}
             </div>
-            <div v-if="alerta" class="rounded-md bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-100" role="alert">
+            <div
+                v-if="alerta"
+                class="rounded-md bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-100"
+                role="alert"
+            >
                 {{ alerta }}
             </div>
 
             <header class="flex flex-wrap items-start justify-between gap-4">
                 <div>
                     <h1 class="text-2xl font-bold">{{ paciente.nome }}</h1>
-                    <p v-if="paciente.nome_social" class="text-sm text-muted-foreground">
-                        Nome civil: {{ paciente.nome_completo }}
-                    </p>
-                    <p class="mt-1 text-sm text-muted-foreground">
-                        {{ paciente.data_nascimento }} · {{ paciente.idade }}
-                    </p>
+                    <p v-if="paciente.nome_social" class="text-sm text-muted-foreground">Nome civil: {{ paciente.nome_completo }}</p>
+                    <p class="mt-1 text-sm text-muted-foreground">{{ paciente.data_nascimento }} · {{ paciente.idade }}</p>
                 </div>
+
+                <form v-if="pode('pulseira.imprimir')" :action="route('pulseira.imprimir', paciente.user_id)" method="post" target="_blank">
+                    <input type="hidden" name="_token" :value="csrf" />
+                    <input type="hidden" name="motivo" value="PRIMEIRA" />
+                    <Button type="submit" variant="outline">
+                        <Printer class="h-4 w-4" aria-hidden="true" />
+                        Imprimir pulseira
+                    </Button>
+                </form>
 
                 <span
                     v-if="paciente.identificacao_provisoria"
@@ -150,8 +167,7 @@ const mascararCpf = (cpf: unknown) =>
                     Login: <span class="font-mono">{{ paciente.login }}</span>
                 </p>
                 <p v-if="paciente.senha_provisoria" class="mt-1 text-xs text-amber-800 dark:text-amber-200">
-                    Senha provisória ativa: a data de nascimento no formato DDMMAAAA. O paciente é obrigado a trocá-la no
-                    primeiro acesso (RN-06).
+                    Senha provisória ativa: a data de nascimento no formato DDMMAAAA. O paciente é obrigado a trocá-la no primeiro acesso (RN-06).
                 </p>
             </section>
 

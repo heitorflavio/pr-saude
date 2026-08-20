@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LeitorPulseira from '@/components/sgh/LeitorPulseira.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -6,7 +7,7 @@ import { usePermissoes } from '@/composables/usePermissoes';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { OctagonAlert, Search, UserPlus } from 'lucide-vue-next';
+import { OctagonAlert, ScanLine, Search, UserPlus } from 'lucide-vue-next';
 import { ref } from 'vue';
 
 interface PacienteLinha {
@@ -28,6 +29,10 @@ const props = defineProps<{
 
 const { pode } = usePermissoes();
 const busca = ref(props.filtros.busca);
+
+// RF-44: a leitura da pulseira nunca executa acao direta -- ela resolve o token e leva
+// a tela de conferencia de identidade.
+const mostrarLeitor = ref(false);
 
 // RF-09: nome, CPF, CNS, data de nascimento, código provisório e token de pulseira.
 // A busca vai ao servidor — o filtro é feito lá, com os índices da doc §5.5.
@@ -73,13 +78,24 @@ const rotuloPagina = (label: string) => {
                     </Button>
                 </form>
 
-                <Button v-if="pode('paciente.criar')" as-child>
-                    <Link :href="route('pacientes.create')">
-                        <UserPlus class="h-4 w-4" aria-hidden="true" />
-                        Novo paciente
-                    </Link>
-                </Button>
+                <div class="flex gap-2">
+                    <Button type="button" variant="outline" @click="mostrarLeitor = !mostrarLeitor">
+                        <ScanLine class="h-4 w-4" aria-hidden="true" />
+                        Ler pulseira
+                    </Button>
+
+                    <Button v-if="pode('paciente.criar')" as-child>
+                        <Link :href="route('pacientes.create')">
+                            <UserPlus class="h-4 w-4" aria-hidden="true" />
+                            Novo paciente
+                        </Link>
+                    </Button>
+                </div>
             </div>
+
+            <section v-if="mostrarLeitor" class="rounded-xl border border-sidebar-border/70 p-4 dark:border-sidebar-border">
+                <LeitorPulseira />
+            </section>
 
             <div class="overflow-x-auto rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
                 <table class="w-full text-left text-sm">

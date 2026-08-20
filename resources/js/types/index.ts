@@ -31,6 +31,8 @@ export interface SharedData {
     auth: Auth;
     /** `alerta` e distinto de `status`: A1 do UC-01 nao e sucesso nem erro. */
     flash: { status: string | null; alerta: string | null };
+    /** A impressao da pulseira responde PDF e usa <form> HTML puro. */
+    csrf_token: string;
     ziggy: {
         location: string;
         url: string;

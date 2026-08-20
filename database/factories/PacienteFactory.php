@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Contracts\GeradorTokenPulseira;
 use App\Models\Atendimento;
 use App\Models\Paciente;
 use App\Models\PacienteAlergia;
@@ -32,8 +33,10 @@ class PacienteFactory extends Factory
             // O login do paciente é o próprio CPF (RN-04).
             'user_id' => User::factory()->paciente()->state(['name' => $nome, 'login' => $cpf]),
             'uuid' => (string) Str::uuid(),
-            // Fase 4 substitui por TokenPulseiraService: 22 base62 + 4 de HMAC.
-            'token_pulseira' => Str::random(26),
+            // Token real do TokenPulseiraService: 22 base62 + 4 de HMAC (doc 8.2.1).
+            // Str::random() aqui produziria um token sem checksum valido, e a rota
+            // /p/{token} devolveria 404 para todo paciente de teste.
+            'token_pulseira' => app(GeradorTokenPulseira::class)->gerar(),
             'nome_completo' => $nome,
             'cpf' => $cpf,
             'data_nascimento' => fake()->dateTimeBetween('-90 years', '-1 year')->format('Y-m-d'),

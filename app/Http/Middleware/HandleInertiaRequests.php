@@ -77,6 +77,10 @@ class HandleInertiaRequests extends Middleware
                 'status' => fn () => $request->session()->get('status'),
                 'alerta' => fn () => $request->session()->get('alerta'),
             ],
+
+            // A impressao da pulseira responde um PDF, nao uma resposta do Inertia --
+            // por isso ela usa um <form> HTML puro, que precisa do token CSRF.
+            'csrf_token' => fn () => $request->session()->token(),
         ];
     }
 }

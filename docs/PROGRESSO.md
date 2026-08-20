@@ -11,8 +11,8 @@ testes que passam e as pendências.
 | 1 | Fundação do banco | ✅ |
 | 2 | Autenticação e autorização | ✅ |
 | 3 | Cadastro de paciente | ✅ |
-| 4 | Token, QR Code e pulseira | 🔄 token entregue (D-25) |
-| 5 | Atendimento e máquina de estados | ⬜ |
+| 4 | Token, QR Code e pulseira | ✅ (validação manual pendente — D-09) |
+| 5 | Atendimento e máquina de estados | ⬜ próxima |
 | 6 | Triagem e classificação de risco | ⬜ |
 | 7 | Fila e painel do profissional | ⬜ |
 | 8 | Prontuário e evolução | ⬜ |
@@ -22,7 +22,7 @@ testes que passam e as pendências.
 | 12 | Auditoria e indicadores | ⬜ |
 | 13 | Fechamento | ⬜ |
 
-**Testes:** `php artisan test` → **151 passando, 819 asserções** (~130 s, MySQL).
+**Testes:** `php artisan test` → **169 passando, 877 asserções** (~155 s, MySQL).
 
 ---
 
@@ -368,14 +368,82 @@ ficou parcial — ver pendências.
 
 ---
 
-## 🔄 Fase 4 — Token, QR Code e pulseira
+## ✅ Fase 4 — Token, QR Code e pulseira (2026-08-18)
 
-Token entregue na Fase 3 (D-25). Resta:
+O `TokenPulseiraService` já viera na Fase 3 (D-25); esta fase entregou o resto.
 
-- [ ] QR Code versão 5, correção Q, 22 mm (`endroid/qr-code`)
-- [ ] Template da pulseira 25 × 280 mm (doc §8.4), sem CPF, CNS, CID nem endereço
-- [ ] Registro em `pulseira_impressao` com motivo (RF-15); reimpressão usa o mesmo token (RF-16)
-- [ ] Rota `GET /p/{token}` com o fluxograma da doc §8.3 — token inválido e token válido
-      sem sessão produzem respostas **indistinguíveis**
-- [ ] Composable `useQrScanner` com Barcode Detection API + ponyfill
-- [ ] ⚠️ Validação manual (ler o QR com celular) fica **bloqueada** até haver HTTPS (D-09)
+### Entregue
+
+- `GerarPulseiraService` — serviço **puro**, sem escrita: renderiza o QR e o PDF. QR na
+  **versão 5, correção Q**, 600 px de origem para 22 mm impressos (doc §8.5).
+- `ImprimirPulseiraAction` — o write: registra `pulseira_impressao` com motivo (RF-15),
+  audita e emite `PulseiraImpressa`. A reimpressão usa **o mesmo token** (RF-16, RN-03).
+- Template `pulseira.termica` 25 × 280 mm com as quatro decisões de layout da doc §8.4:
+  faixa de cor na borda superior inteira, nome na maior fonte, idade congelada ao lado da
+  data de nascimento, e faixa de alergia na última linha com marcação redundante.
+  **Não imprime CPF, CNS, CID nem endereço** — e há teste provando cada ausência.
+- `PulseiraController::resolver` — o fluxograma da doc §8.3 **na ordem exata**. A ordem
+  dos passos *é* o controle: validar o checksum antes do banco, e redirecionar antes da
+  consulta, é o que impede a rota de virar oráculo de enumeração.
+- `useQrScanner` com Barcode Detection API nativa + ponyfill `barcode-detector` 3.2.2, e
+  `LeitorPulseira` com os dois modos de falha reais (permissão negada, sem câmera) e
+  busca manual sempre disponível — o profissional não pode travar porque a câmera falhou.
+- Confirmação de identidade em duas etapas (RF-44): o leitor **nunca** age direto; ele
+  resolve o token e abre a tela de conferência.
+- Rota `portal.login` como placeholder informativo até a Fase 11 (D-30).
+
+### Definition of done
+
+| Critério | Estado |
+|---|---|
+| 20.000 tokens sem colisão; caractere alterado, truncado e outra chave rejeitados | ✅ (Fase 3) |
+| `GET /p/{token}` sem autenticação não vaza dado e redireciona | ✅ |
+| Token existente e inexistente produzem resposta **idêntica** sem sessão | ✅ |
+| Imprimir uma pulseira e ler o QR com um celular | ⏸️ **bloqueado por D-09** (sem HTTPS) |
+
+### Testes
+
+`PulseiraTest` (18): dimensionamento do QR (37 módulos = versão 5), RF-15/RF-16, os três
+campos que a pulseira não imprime, faixa de alergia redundante, cor com rótulo textual, e
+os seis caminhos do fluxograma da doc §8.3 — inclusive o mínimo vital sem vínculo e a
+negativa a paciente lendo pulseira alheia.
+
+### Erros corrigidos
+
+1. **O código de QR da doc §8.5 não compila** na versão instalada: `endroid/qr-code` 6.1.3
+   substituiu `Builder::create()` fluente por construtor de argumentos nomeados (D-29).
+   Os parâmetros de dimensionamento foram preservados integralmente.
+2. **A `PacienteFactory` gerava token sem checksum válido** (`Str::random(26)`, marcador
+   deixado na Fase 1). Seis testes falharam por essa causa única — a rota rejeitava todo
+   paciente de teste antes de consultar o banco. Corrigido para usar o serviço real
+   (D-31).
+3. O exemplo de código da própria doc §8.3 usa `authorize('verContexto')`, que daria 403
+   — mas o fluxograma logo acima manda cair no **mínimo vital** nesse caso. Seguido o
+   fluxograma.
+
+### Pendências
+
+1. **Validação manual bloqueada** (D-09): imprimir a pulseira e ler o QR com celular
+   exige HTTPS, porque `getUserMedia` só funciona em contexto seguro. Um
+   `herd secure pr-saude` destrava.
+2. `portal.login` é placeholder (D-30) — substituído na Fase 11.
+
+---
+
+
+## ⬜ Fase 5 — Atendimento e máquina de estados
+
+Escopo previsto:
+
+- [ ] `AbrirAtendimentoAction` com numeração sequencial por ano e unidade
+      (`2026-000148`), gerada de forma segura sob concorrência
+- [ ] `AlterarStatusAction` (doc §6.3): valida contra `podeTransitarPara()`, calcula
+      `permanencia_segundos` e emite `StatusAtendimentoAlterado`
+- [ ] `FinalizarAtendimentoAction` exigindo desfecho (RN-14)
+- [ ] Área de Atendimentos do paciente, separando finalizados e em andamento (RF-18)
+- [ ] Linha do tempo consolidada do atendimento (RF-22)
+- [ ] Teste de **todas** as transições da doc §6.2 — as permitidas passam, as demais
+      lançam `TransicaoInvalidaException`
+- [ ] Teste de alcançabilidade: todo estado não terminal alcança `FINALIZADO`, sem deadlock
+- [ ] Teste de concorrência: duas aberturas simultâneas para o mesmo paciente — uma passa,
+      a outra recebe violação de índice único (o `uk_atendimento_ativo` da Fase 1)

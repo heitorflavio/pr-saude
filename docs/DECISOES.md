@@ -462,9 +462,15 @@ RN-04 — não há dívida do lado do paciente.
 
 ---
 
-## D-24 · A3 do UC-01: credencial de menor no CPF do responsável **não** implementada
+## D-24 · A3 do UC-01: menor de idade mantém login no próprio CPF
 
-**Origem:** lacuna do documento · **Status:** 🔴 **requer decisão** · **2026-08-18**
+**Origem:** lacuna do documento · **Status:** ✅ **decidida pelo usuário** ·
+**2026-08-18**
+
+> **Decisão do usuário: manter o login no próprio CPF do menor.** O responsável legal
+> permanece registrado como contato (nome e telefone obrigatórios para menores de 18).
+> Esta é uma divergência consciente do fluxo A3, registrada abaixo com o raciocínio que
+> a sustenta.
 
 O fluxo alternativo A3 do UC-01 diz: paciente menor de idade "exige dados do responsável
 legal. **A credencial de acesso é emitida no CPF do responsável**".
@@ -496,8 +502,16 @@ exige que o paciente acesse exclusivamente os próprios dados.
 | Adicionar `paciente.responsavel_cpf` e um vínculo responsável → dependentes, com o portal permitindo alternar entre eles | Fiel à intenção do A3, resolve RN-26, mas é divergência de esquema e trabalho de Fase 11 |
 | Menor sem CPF entra como identificação provisória vinculada ao responsável | Reaproveita RF-04, mas distorce o significado de "não identificado" |
 
-Enquanto não houver decisão, **menores são cadastrados com o próprio CPF** e o
-responsável fica registrado como contato de emergência.
+**Opção escolhida: a primeira.** Além de não exigir mudança de esquema, ela é a única
+que preserva RN-26 sem trabalho adicional — o portal sempre sabe de quem é o dado que
+está exibindo, porque cada credencial pertence a uma única pessoa. A intenção do A3
+(garantir que exista um adulto responsável identificado) fica atendida pela
+obrigatoriedade do contato; o que não se implementa é o compartilhamento de credencial,
+que criaria mais risco de sigilo do que resolve.
+
+Se o portal do paciente (Fase 11) precisar de acesso do responsável aos dados do menor,
+o caminho correto será um vínculo explícito responsável → dependentes, não um login
+compartilhado.
 
 ---
 
@@ -602,3 +616,80 @@ no `.env.example`. O seeder é idempotente (`updateOrCreate` por `login`).
 `DatabaseSeeder` — eles semeiam `RbacSeeder` e `ClassificacaoRiscoSeeder` diretamente, por
 velocidade. `migrate:fresh --seed` precisa entrar no checklist de cada checkpoint, não só
 no da fase que o menciona.
+
+---
+
+## D-29 · `endroid/qr-code` v6 mudou a API — o exemplo da doc §8.5 não compila
+
+**Origem:** erro técnico do documento · **Status:** ✅ contornada · **2026-08-18**
+
+A doc §8.5 traz o código de geração do QR Code na API fluente da v4/v5:
+
+```php
+Builder::create()->writer(new PngWriter())->data(...)->errorCorrectionLevel(...)->build();
+```
+
+A versão instalada é a **6.1.3**, onde `Builder` é `final readonly` com **construtor de
+argumentos nomeados** — `Builder::create()` não existe mais. O código do documento daria
+*fatal error*.
+
+**Decisão.** Usar a API real da v6:
+
+```php
+new Builder(
+    writer: new PngWriter,
+    data: route('pulseira.resolver', $token),
+    errorCorrectionLevel: ErrorCorrectionLevel::Quartile,
+    size: 600,
+    margin: 0,
+    roundBlockSizeMode: RoundBlockSizeMode::Margin,
+)->build();
+```
+
+Os **parâmetros de dimensionamento da doc §8.5 foram preservados integralmente**: ECC
+nível Q (25%), margem controlada no template, 600 px de origem para 22 mm impressos.
+
+A versão do QR não é fixada por parâmetro — o `endroid` escolhe a menor que acomode o
+conteúdo. Com a URL de 48 caracteres e ECC Q isso dá a **versão 5 (37 × 37 módulos)**,
+como o cálculo da doc previu. Há teste conferindo os 37 módulos: se o formato do token
+ou a URL base crescerem, ele quebra e avisa **antes** de a pulseira sair errada da
+impressora.
+
+---
+
+## D-30 · `portal.login` é placeholder até a Fase 11
+
+**Origem:** ordem de dependência entre fases · **Status:** ⚠️ placeholder consciente ·
+**2026-08-18**
+
+O fluxograma da doc §8.3 redireciona para `portal.login` quando não há sessão, e os
+middlewares `ExpirarSessao` e `SenhaProvisoria` também referenciam essa rota. Mas o
+portal do paciente é a **Fase 11**, e o que o torna defensável são as mitigações M-1 a
+M-12 da doc §12.2.3 — em especial **M-3**, que transforma a data de nascimento (15,3
+bits) em dois fatores usando o token da pulseira (131 bits).
+
+**Decisão.** A rota existe e renderiza uma página informativa que **não autentica
+ninguém**. Preferiu-se isso a um formulário de login sem as mitigações, que seria pior
+que não ter portal: criaria a expectativa de acesso protegido sobre um esquema
+reconhecidamente fraco.
+
+A Fase 11 substitui a página. O nome da rota já está correto, então nada além dela
+precisa mudar.
+
+---
+
+## D-31 · A `PacienteFactory` passou a gerar token real
+
+**Origem:** dívida da Fase 1 quitada · **Status:** ✅ aplicada · **2026-08-18**
+
+A factory usava `Str::random(26)` como marcador, com o comentário "Fase 4 substitui por
+TokenPulseiraService". Isso produzia tokens do tamanho certo mas **sem checksum HMAC
+válido** — e a rota `/p/{token}` devolvia 404 para todo paciente de teste, porque o
+passo 1 do fluxograma rejeita antes de consultar o banco.
+
+Seis testes da Fase 4 falharam por essa causa única. A factory agora chama
+`app(GeradorTokenPulseira::class)->gerar()`.
+
+**O que isso ensina sobre o marcador:** um placeholder que produz dado com o *formato*
+certo mas o *conteúdo* errado é pior que um que falha na hora — ele atravessa três fases
+sem ser notado e só aparece quando alguém escreve o teste que depende do conteúdo.
