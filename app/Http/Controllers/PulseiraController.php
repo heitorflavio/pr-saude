@@ -70,8 +70,12 @@ final class PulseiraController extends Controller
         //    existe. Redirecionar ANTES da consulta é o que impede o uso como oráculo:
         //    token existente e token inexistente produzem a mesma resposta.
         if ($usuario === null) {
+            // M-3: não é flash. O GET do formulário consumiria o flash antes do POST;
+            // o fator de posse precisa sobreviver até a autenticação.
+            $request->session()->put('portal.pulseira_token', $token);
+
             return redirect()->route('portal.login')
-                ->with('pulseira_token', $token);
+                ->with('status', 'Pulseira reconhecida. Informe seu CPF e sua senha.');
         }
 
         $paciente = Paciente::where('token_pulseira', $token)->firstOrFail();
@@ -80,7 +84,7 @@ final class PulseiraController extends Controller
         if ($usuario->ehPaciente()) {
             abort_unless($usuario->id === $paciente->user_id, 403, 'Acesso negado.');
 
-            return redirect()->route('portal.login');
+            return redirect()->route('portal.acompanhamento');
         }
 
         // 4. Profissional. A Policy decide entre contexto completo e mínimo vital --

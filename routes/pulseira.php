@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\PulseiraController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 /*
 | Pulseira: impressão (equipe) e resolução do QR Code (público autenticado).
@@ -28,17 +27,3 @@ Route::middleware('auth')->group(function () {
 Route::get('p/{token}', [PulseiraController::class, 'resolver'])
     ->middleware('throttle:30,1')
     ->name('pulseira.resolver');
-
-/*
-| Placeholder do portal do paciente.
-|
-| A rota `portal.login` é o destino do fluxograma da doc §8.3 quando não há sessão, e é
-| referenciada também pelos middlewares ExpirarSessao e SenhaProvisoria. O portal
-| completo — com as mitigações M-1 a M-12 da doc §12.2.3 — é a Fase 11.
-|
-| Até lá esta página apenas informa; ela NÃO autentica ninguém. Preferiu-se isso a um
-| formulário de login sem as mitigações, que seria pior que não ter portal nenhum.
-| Ver docs/DECISOES.md D-30.
-*/
-Route::get('portal/entrar', fn () => Inertia::render('Portal/EmBreve'))
-    ->name('portal.login');

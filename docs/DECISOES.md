@@ -1094,3 +1094,48 @@ individualmente ligado à solicitação; cada item da própria fila devolveria 4
 constitui vínculo funcional com o paciente. O acesso continua restrito ao contexto do
 exame, auditado, e desaparece para solicitação cancelada. Para os demais perfis, seguem
 valendo as origens individuais de vínculo já existentes.
+
+---
+
+## D-50 · O fator da pulseira permanece na sessão até a troca de senha
+
+**Origem:** integração QR Code × primeiro acesso · **Status:** ✅ aplicada · **2026-08-20**
+
+O QR Code redireciona para um formulário GET antes do POST de autenticação. Dados
+armazenados com `flash()` podem ser consumidos ao renderizar esse formulário, eliminando
+o fator de posse antes da conferência M-3.
+
+**Decisão.** `PulseiraController` grava `portal.pulseira_token` na sessão normal. O token
+é removido imediatamente após a definição da senha definitiva ou ao invalidar a sessão
+no logout. Assim, ele sobrevive exatamente às requisições necessárias ao primeiro acesso
+sem virar credencial persistente do navegador.
+
+---
+
+## D-51 · O escopo do paciente é aplicado centralmente às entidades clínicas
+
+**Origem:** RN-26 e heterogeneidade do schema · **Status:** ✅ aplicada · **2026-08-20**
+
+Nem toda entidade clínica possui `paciente_id`: várias chegam ao paciente pelo
+atendimento, prescrição ou solicitação de exame. Copiar filtros diferentes para cada
+controller recriaria justamente o risco que a RN-26 pretende eliminar.
+
+**Decisão.** Um único `DoPacienteAutenticadoScope` conhece os caminhos relacionais e é
+registrado no boot da aplicação para todas as entidades expostas ao portal. Quando o
+guard `paciente` está ativo, até uma consulta sem `where` só enxerga o próprio paciente;
+um UUID alheio resulta em 404.
+
+---
+
+## D-52 · Notificações externas ficam atrás de eventos de domínio
+
+**Origem:** M-8/M-10 e ausência de provedor de mensageria · **Status:** ✅ aplicada · **2026-08-20**
+
+O domínio exige notificar o acesso e prevê SMS como segundo fator opcional, mas não
+define provedor, credenciais, remetente, SLA nem política de reenvio.
+
+**Decisão.** Todo acesso bem-sucedido emite `AcessoPortalRealizado`, contendo paciente e
+origem, que é o contrato estável para um listener de SMS, push ou mensageria hospitalar.
+O fluxo obrigatório usa o fator forte já disponível — o token da pulseira. O acesso
+alternativo por SMS (M-10) permanece desabilitado até que um canal externo seja escolhido;
+não se simula envio nem se expõe código de uso único em log ou interface.

@@ -197,4 +197,22 @@ class Paciente extends Model
             ->when($unidadeId, fn ($q) => $q->where('unidade_id', $unidadeId))
             ->first();
     }
+
+    /** M-9: portal durante o episódio e por 30 dias após o encerramento. */
+    public function possuiAcessoVigente(): bool
+    {
+        return $this->atendimentos()
+            ->where(function (Builder $q) {
+                $q->whereNotIn('status', ['FINALIZADO', 'CANCELADO'])
+                    ->orWhere('finalizado_em', '>=', now()->subDays((int) config('portal.acesso_apos_alta_dias', 30)));
+            })
+            ->exists();
+    }
+
+    /** M-2: a credencial de nascimento só vale 72 h e nunca após o episódio. */
+    public function senhaProvisoriaVigente(): bool
+    {
+        return $this->user->created_at->addHours((int) config('portal.senha_provisoria_horas', 72))->isFuture()
+            && $this->atendimentoAtivo() !== null;
+    }
 }

@@ -50,7 +50,7 @@ final class AuditoriaService
         ?string $justificativa = null,
         ?User $usuario = null,
     ): AuditoriaLog {
-        $usuario ??= Auth::user();
+        $usuario ??= Auth::user() ?? Auth::guard('paciente')->user();
 
         return AuditoriaLog::create([
             'user_id' => $usuario?->id,

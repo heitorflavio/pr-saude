@@ -1,9 +1,11 @@
 <?php
 
+use App\Http\Middleware\AcessoPortalVigente;
 use App\Http\Middleware\ExigirVinculoAssistencial;
 use App\Http\Middleware\ExpirarSessao;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RegistrarAuditoria;
+use App\Http\Middleware\SenhaDefinitiva;
 use App\Http\Middleware\SenhaProvisoria;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -32,6 +34,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'auditar' => RegistrarAuditoria::class,
             // RN-28: break the glass com justificativa registrada.
             'vinculo' => ExigirVinculoAssistencial::class,
+            'senha.definitiva' => SenhaDefinitiva::class,
+            'portal.vigente' => AcessoPortalVigente::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

@@ -790,3 +790,49 @@ asserções**; build Vite e lint verdes.
 
 1. `ValorCriticoDetectado` é o ponto de integração para a notificação prioritária; o
    canal externo não foi especificado.
+
+---
+
+## ✅ Fase 11 — Portal do paciente (2026-08-20)
+
+**RF atendidos:** RF-70 a RF-77 · **RN:** RN-26 e RN-27 · **UC-11**
+
+### Entregue
+
+- Portal isolado no guard `paciente`; todas as rotas de dado são `GET`. Sob autenticação,
+  as únicas escritas são a troca da própria senha e o logout.
+- `DoPacienteAutenticadoScope` cobre atendimentos, registros, diagnósticos, prescrições,
+  doses e exames pelos respectivos caminhos relacionais. UUID de outro paciente vira 404.
+- Primeiro acesso exige CPF, senha provisória dentro de 72 horas, atendimento ativo e o
+  token opaco lido da pulseira. O fator permanece na sessão somente até a troca de senha.
+- Erro uniforme e verificação Argon2id de custo uniforme evitam enumeração de CPF;
+  limitação por IP e bloqueio progressivo da conta aplicam 1 min, 15 min, 1 h e bloqueio
+  até intervenção da recepção.
+- Troca obrigatória recusa senha curta, comum, igual à atual, CPF e variações da data de
+  nascimento; o acesso definitivo expira 30 dias após a alta.
+- Toda tentativa é auditada com CPF mascarado e o sucesso emite `AcessoPortalRealizado`
+  como ponto de integração da notificação M-8.
+- Telas acessíveis de acompanhamento, atendimento, medicamentos, exames e histórico usam
+  rótulos para pacientes, mostram apenas tempo decorrido e nunca estimativa.
+- Registro sigiloso é omitido sem vestígio; resultado não liberado aparece em análise sem
+  laudo, conclusão ou analitos.
+
+### Definition of done
+
+| Critério | Estado |
+|---|---|
+| Fator da pulseira obrigatório no primeiro acesso | ✅ |
+| CPF inexistente e senha errada são indistinguíveis | ✅ |
+| Paciente A não acessa atendimento do paciente B | ✅ |
+| Resultado não liberado e registro sigiloso não vazam conteúdo | ✅ |
+| Rotas de dado são estruturalmente somente leitura | ✅ |
+
+### Testes
+
+`PortalPacienteTest`: **19 testes e 76 asserções**. Suíte completa: **313 testes, 1682
+asserções**; build Vite e lint verdes.
+
+### Pendências
+
+1. O segundo fator alternativo por SMS (M-10) é opcional e depende da contratação de um
+   provedor; `AcessoPortalRealizado` também aguarda esse canal para a notificação M-8.
