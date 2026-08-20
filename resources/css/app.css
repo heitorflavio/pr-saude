@@ -90,6 +90,21 @@ html {
         @apply bg-background text-foreground;
     }
 
+    select {
+        @apply bg-background text-foreground;
+        color-scheme: light;
+    }
+
+    .dark select {
+        color-scheme: dark;
+    }
+
+    select option,
+    select optgroup {
+        background-color: hsl(var(--popover));
+        color: hsl(var(--popover-foreground));
+    }
+
     :focus-visible {
         outline: 3px solid hsl(var(--ring));
         outline-offset: 3px;
