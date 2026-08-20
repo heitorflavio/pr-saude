@@ -511,6 +511,34 @@ it('exibe a linha do tempo consolidada', function () {
         );
 });
 
+it('oferece uma visao global para retomar atendimentos sem procurar o paciente', function () {
+    $antigo = Atendimento::factory()->create([
+        'unidade_id' => $this->unidade->id,
+        'admitido_em' => now()->subHours(2),
+    ]);
+    $recente = Atendimento::factory()->create([
+        'unidade_id' => $this->unidade->id,
+        'admitido_em' => now()->subHour(),
+    ]);
+    $encerrado = Atendimento::factory()->finalizado()->create([
+        'unidade_id' => $this->unidade->id,
+        'finalizado_em' => now(),
+    ]);
+
+    $this->actingAs($this->medico->user->fresh())
+        ->get(route('atendimentos.geral'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('Atendimentos/Geral')
+            ->has('emAndamento', 2)
+            ->where('emAndamento.0.id', $antigo->id)
+            ->where('emAndamento.1.id', $recente->id)
+            ->where('emAndamento.0.paciente_nome', $antigo->paciente->nomeExibicao())
+            ->has('recentes', 1)
+            ->where('recentes.0.id', $encerrado->id)
+        );
+});
+
 it('separa atendimentos em andamento dos finalizados', function () {
     // RF-18
     $paciente = Paciente::factory()->create();

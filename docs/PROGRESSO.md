@@ -997,3 +997,22 @@ Suíte completa: **338 testes, 1949 asserções**; ESLint e build verdes.
 
 `AutorizacaoTest` percorre as 42 permissions e abilities contextuais para o tipo ADMIN.
 Suíte completa: **337 testes, 1972 asserções**; Pint verde.
+
+---
+
+## ✅ Complemento — Fluxo direto de atendimentos (2026-08-20)
+
+- Item **Atendimentos** próprio na sidebar, visível por `atendimento.ler_status`.
+- Nova visão `GET /atendimentos` com casos em andamento e os 20 encerramentos mais
+  recentes, sem exigir busca prévia pela ficha do paciente.
+- Ações contextuais levam direto ao caso, à triagem ou à atribuição; a fila ganhou um
+  link explícito para o atendimento correspondente.
+- A tela do caso agora retorna à seção Atendimentos pelo breadcrumb.
+- A fila continua responsável pela ordem clínica da RN-10; a visão global não replica
+  nem altera esse cálculo.
+
+### Testes
+
+`AtendimentoTest` cobre conteúdo e ordenação da visão global; `NavegacaoTest` garante a
+rota da sidebar e o elo fila → atendimento. Suíte completa: **339 testes, 1998
+asserções**; Pint, ESLint e build Vite verdes.

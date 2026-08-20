@@ -1272,3 +1272,26 @@ sobrescrita, alergia por princípio ativo, dupla checagem, liberação de result
 prometer o que ele não tem. O rodapé traz o aviso de que o sistema não substitui
 atendimento e o número do SAMU, porque uma página pública de pronto-socorro será
 encontrada por quem está passando mal.
+
+---
+
+## D-60 · Atendimentos ganham uma visão operacional própria
+
+**Origem:** pedido de produto (fora das 13 fases) · **Status:** ✅ aplicada · **2026-08-20**
+
+O fluxo anterior obrigava a equipe a localizar primeiro o paciente para só então chegar
+ao atendimento. A fila, por sua vez, oferecia triagem e atribuição, mas não um acesso
+direto ao caso. As rotas existiam, porém a navegação tratava atendimento apenas como
+filho da ficha do paciente.
+
+**Decisão.** A rota `GET /atendimentos` passa a ser a visão operacional do ciclo:
+
+- mostra todos os atendimentos em andamento, do mais antigo para o mais recente;
+- oferece acesso direto ao caso e, conforme status e permission, à triagem ou atribuição;
+- mantém somente os 20 encerramentos mais recentes como referência rápida; o histórico
+  completo continua na ficha de cada paciente;
+- liga explicitamente atendimento e fila nos dois sentidos, sem misturar suas regras.
+
+A fila continua sendo a fonte da ordenação clínica da RN-10. A nova tela não calcula
+posição nem escolhe o próximo paciente: ela organiza casos por antiguidade para
+localização, enquanto `/fila` preserva prioridade clínica seguida de horário de entrada.

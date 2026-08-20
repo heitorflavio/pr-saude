@@ -42,7 +42,7 @@ const page = usePage<SharedData>();
 const status = computed(() => page.props.flash?.status);
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Pacientes', href: '/pacientes' },
+    { title: 'Atendimentos', href: '/atendimentos' },
     { title: props.paciente.nome, href: `/pacientes/${props.paciente.user_id}` },
     { title: String(props.atendimento.numero), href: '#' },
 ];

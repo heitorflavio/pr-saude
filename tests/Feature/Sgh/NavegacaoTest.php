@@ -56,6 +56,13 @@ it('a ficha do paciente leva aos atendimentos, e o atendimento leva à triagem',
         ->toContain("route('triagem.edit'");
 });
 
+it('oferece atendimentos como secao propria e liga a fila ao caso', function () {
+    expect(fonteDoComponente('resources/js/components/AppSidebar.vue'))
+        ->toContain("title: 'Atendimentos', href: '/atendimentos'")
+        ->and(fonteDoComponente('resources/js/pages/Fila/Index.vue'))
+        ->toContain('`/atendimentos/${item.atendimento_id}`');
+});
+
 it('NavMain usa o contrato compartilhado de NavItem, sem redeclarar o campo', function () {
     $fonte = fonteDoComponente('resources/js/components/NavMain.vue');
 

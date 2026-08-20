@@ -5,7 +5,7 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, Sid
 import { usePermissoes } from '@/composables/usePermissoes';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/vue3';
-import { ChartNoAxesCombined, FlaskConical, LayoutGrid, ListOrdered, Pill, ShieldCheck, Users } from 'lucide-vue-next';
+import { ChartNoAxesCombined, ClipboardList, FlaskConical, LayoutGrid, ListOrdered, Pill, ShieldCheck, Users } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from './AppLogo.vue';
 
@@ -18,14 +18,14 @@ const { podeAlguma } = usePermissoes();
  * do servidor. Um menu limpo evita que a recepcionista passe o turno clicando em telas
  * que vão devolver 403.
  *
- * **Só entra aqui o que tem rota de índice.** Triagem, prontuário e medicamentos de um
- * paciente são sempre de um atendimento concreto: chega-se a eles pela fila ou pela
- * ficha, não por um item de menu. Um link que devolve 404 é pior que a ausência dele —
- * ensina o usuário a desconfiar do menu inteiro.
+ * **Só entra aqui o que tem rota de índice.** Triagem e prontuário continuam vinculados
+ * a um caso concreto; a visão global de atendimentos é a porta operacional para chegar
+ * a eles sem antes procurar a ficha do paciente.
  */
 const itensNavegacao: NavItem[] = [
     { title: 'Painel', href: '/dashboard', icon: LayoutGrid },
     { title: 'Pacientes', href: '/pacientes', icon: Users, permissoes: ['paciente.ler'] },
+    { title: 'Atendimentos', href: '/atendimentos', icon: ClipboardList, permissoes: ['atendimento.ler_status'] },
     { title: 'Fila', href: '/fila', icon: ListOrdered, permissoes: ['fila.ler'] },
     { title: 'Medicamentos', href: '/medicamentos', icon: Pill, permissoes: ['prescricao.ler', 'medicamento.administrar'] },
     { title: 'Exames', href: '/exames', icon: FlaskConical, permissoes: ['exame.ler_solicitacao', 'exame.executar'] },

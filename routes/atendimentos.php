@@ -11,6 +11,11 @@ use Illuminate\Support\Facades\Route;
 | que alguém lembrou de cobrir.
 */
 Route::middleware('auth')->group(function () {
+    // Visão operacional: ponto único para localizar qualquer atendimento em curso.
+    Route::get('atendimentos', [AtendimentoController::class, 'geral'])
+        ->middleware('auditar:atendimento.ler_status')
+        ->name('atendimentos.geral');
+
     // RF-18: atendimentos do paciente, em andamento e finalizados.
     Route::get('pacientes/{paciente}/atendimentos', [AtendimentoController::class, 'index'])
         ->middleware('auditar:atendimento.ler_status')

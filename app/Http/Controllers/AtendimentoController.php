@@ -23,6 +23,35 @@ use Inertia\Response;
 
 final class AtendimentoController extends Controller
 {
+    /** Visão operacional que evita passar pela busca de pacientes para retomar um caso. */
+    public function geral(): Response
+    {
+        $this->authorize('viewAny', Atendimento::class);
+
+        $relacoes = ['paciente', 'unidade', 'classificacaoRisco', 'profissionalResponsavel'];
+        $terminais = [StatusAtendimento::Finalizado->value, StatusAtendimento::Cancelado->value];
+
+        $emAndamento = Atendimento::query()
+            ->with($relacoes)
+            ->whereNotIn('status', $terminais)
+            ->orderBy('admitido_em')
+            ->get()
+            ->map(fn (Atendimento $atendimento) => $this->resumoGeral($atendimento));
+
+        $recentes = Atendimento::query()
+            ->with($relacoes)
+            ->whereIn('status', $terminais)
+            ->latest('finalizado_em')
+            ->limit(20)
+            ->get()
+            ->map(fn (Atendimento $atendimento) => $this->resumoGeral($atendimento));
+
+        return Inertia::render('Atendimentos/Geral', [
+            'emAndamento' => $emAndamento,
+            'recentes' => $recentes,
+        ]);
+    }
+
     /** RF-18: os atendimentos do paciente, separando em andamento de finalizados. */
     public function index(Paciente $paciente): Response
     {
@@ -214,6 +243,17 @@ final class AtendimentoController extends Controller
             'prioridade' => $atendimento->classificacaoRisco?->nome,
             'prioridade_cor' => $atendimento->classificacaoRisco?->cor_nome->value,
             'prioridade_hex' => $atendimento->classificacaoRisco?->cor_hex,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function resumoGeral(Atendimento $atendimento): array
+    {
+        return $this->resumo($atendimento) + [
+            'paciente_id' => $atendimento->paciente_id,
+            'paciente_nome' => $atendimento->paciente->nomeExibicao(),
         ];
     }
 

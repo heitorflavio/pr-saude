@@ -139,8 +139,11 @@ const alternar = (geral: boolean) => router.get(route('fila.index'), geral ? { f
                                 <span v-else class="text-xs text-muted-foreground">{{ item.situacao_rotulo }}</span>
                             </td>
                             <td class="px-4 py-3 text-right">
-                                <Link :href="`/atendimentos/${item.atendimento_id}/triagem`" class="text-xs underline underline-offset-4">
-                                    Reavaliar
+                                <Link :href="`/atendimentos/${item.atendimento_id}`" class="text-xs font-medium underline underline-offset-4">
+                                    Atendimento
+                                </Link>
+                                <Link :href="`/atendimentos/${item.atendimento_id}/triagem`" class="ml-3 text-xs underline underline-offset-4">
+                                    {{ item.sugere_reavaliacao ? 'Reavaliar' : 'Triagem' }}
                                 </Link>
                                 <Link
                                     v-if="contexto.pode_atribuir"
