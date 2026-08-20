@@ -132,6 +132,18 @@ class Atendimento extends Model
         return $this->triagens()->latest('criado_em')->first();
     }
 
+    /**
+     * O item de fila que ainda ocupa lugar. A reclassificacao atualiza a prioridade
+     * DESTE item e nao cria outro -- e o que preserva `entrou_em` (doc 7.5).
+     */
+    public function filaItemAtivo(): ?FilaItem
+    {
+        return $this->filaItens()
+            ->whereIn('situacao', ['AGUARDANDO', 'CHAMADO'])
+            ->latest('entrou_em')
+            ->first();
+    }
+
     public function estaAtivo(): bool
     {
         return ! $this->status->ehTerminal();

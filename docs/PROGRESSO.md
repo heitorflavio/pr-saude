@@ -13,8 +13,8 @@ testes que passam e as pendências.
 | 3 | Cadastro de paciente | ✅ |
 | 4 | Token, QR Code e pulseira | ✅ |
 | 5 | Atendimento e máquina de estados | ✅ |
-| 6 | Triagem e classificação de risco | ⬜ próxima |
-| 7 | Fila e painel do profissional | ⬜ |
+| 6 | Triagem e classificação de risco | ✅ |
+| 7 | Fila e painel do profissional | ⬜ próxima |
 | 8 | Prontuário e evolução | ⬜ |
 | 9 | Medicamentos | ⬜ |
 | 10 | Clínica e exames | ⬜ |
@@ -22,7 +22,7 @@ testes que passam e as pendências.
 | 12 | Auditoria e indicadores | ⬜ |
 | 13 | Fechamento | ⬜ |
 
-**Testes:** `php artisan test` → **198 passando, 1265 asserções** (~190 s, MySQL).
+**Testes:** `php artisan test` → **216 passando, 1350 asserções** (~220 s, MySQL).
 
 ---
 
@@ -521,27 +521,82 @@ nenhum dos dois cobriria.
 
 ### Pendências
 
-1. **A numeração diverge da letra do prompt** (D-34). Se a numeração por unidade for
-   realmente desejada, exige trocar `UNIQUE (numero)` por `UNIQUE (unidade_id, numero)` —
-   mudança de esquema que torna o número ambíguo fora do contexto da unidade.
-   **Requer decisão.**
+1. ~~A numeração diverge da letra do prompt~~ — **decidido pelo usuário**: mantida
+   global por ano (D-34).
 2. `profissional_responsavel_id` ainda não é preenchido por nenhum fluxo — quem atribui é
    a `AtribuirProfissionalAction` da Fase 7. Até lá, a supervisão do RN-12 é o que
    sustenta a alteração de status.
 
 ---
 
-## ⬜ Fase 6 — Triagem e classificação de risco
+## ✅ Fase 6 — Triagem e classificação de risco (2026-08-18)
+
+### Entregue
+
+- `RealizarTriagemAction` — classifica, registra sinais vitais (D-06) e **bifurca**:
+  vermelho vai direto a `EM_ATENDIMENTO` sem `fila_item` (RN-11); as demais cores entram
+  na fila geral com `entrou_em` carimbado.
+- `ReclassificarRiscoAction` (doc §7.5) — nova triagem **encadeada**, a anterior intacta,
+  `entrou_em` preservado, reimpressão de pulseira disparada (RN-09) e promoção a
+  atendimento imediato quando o novo nível é vermelho.
+- `AvaliadorEsperaService` (doc §7.3.1) — classifica a criticidade da espera **sem
+  reordenar nada**. Envelhecimento automático de prioridade é proibido: um azul que
+  espera três horas não se torna mais grave que um laranja que acabou de chegar.
+- Eventos `TriagemRealizada`, `ReimpressaoPulseiraNecessaria` e `EmergenciaDetectada`.
+- `TriagemController` + `Triagem/Edit.vue` com a cadeia de classificações visível e o
+  aviso de espera crítica que **sugere** reavaliação em vez de promover.
+
+### Definition of done
+
+| Critério | Estado |
+|---|---|
+| Reclassificar de verde para laranja preserva `entrou_em` e reordena a fila | ✅ |
+| Vermelho vai direto a `EM_ATENDIMENTO`, sem fila | ✅ |
+| A triagem anterior continua legível após a reclassificação | ✅ |
+
+### Testes
+
+`TriagemTest` (18) — os três casos da DoD, mais: recusa de segunda triagem, série
+temporal de sinais vitais, os `CHECK` de faixa recusando pela Action com rollback
+integral, auditoria com justificativa, as fronteiras exatas do `AvaliadorEsperaService`
+(0,75 / 1,00 / 2,00) e a prova de que **um paciente azul esperando 600 min contra um alvo
+de 240 continua azul**.
+
+### Bug corrigido — e este é sério
+
+**O Eloquent truncava os microssegundos** de todas as nove colunas `DATETIME(6)`
+(D-36). O `$dateFormat` padrão é `'Y-m-d H:i:s'`, e a precisão dessas colunas não é
+decorativa: é o que desempata registros criados no mesmo segundo.
+
+O sintoma foi pequeno — a ordem do histórico de triagens saía errada. A consequência real
+é maior: **numa fila com chegadas simultâneas, que é a regra num pronto-socorro, o
+desempate por ordem de chegada da RN-10 deixaria de ser determinístico.** Dois pacientes
+verdes com o mesmo `entrou_em` seriam ordenados pelo que o MySQL devolvesse primeiro, e a
+ordem poderia mudar entre duas leituras da mesma fila.
+
+Corrigido com `$dateFormat = 'Y-m-d H:i:s.u'` nos nove models.
+
+### Pendências
+
+1. `fila_item.profissional_id` nasce nulo (fila geral). A atribuição é a Fase 7 (UC-05).
+2. `ReimpressaoPulseiraNecessaria` é emitido mas ainda não tem ouvinte — por projeto
+   (doc §7.7). A impressão continua sendo ato de um profissional (RF-15), não automação
+   silenciosa.
+
+---
+
+## ⬜ Fase 7 — Fila e painel do profissional
 
 Escopo previsto:
 
-- [ ] `RealizarTriagemAction` e `ReclassificarRiscoAction` (doc §7.5)
-- [ ] Sinais vitais em `sinal_vital`, com os `CHECK` de faixa ativos (D-06)
-- [ ] Reclassificação **encadeada** por `triagem_anterior_id`; a anterior permanece intacta
-- [ ] `AvaliadorEsperaService` (doc §7.3.1) — classifica a criticidade da espera **sem
-      reordenar a fila**. Envelhecimento automático é proibido
-- [ ] Reimpressão de pulseira na reclassificação (RN-09) e fluxo de emergência no
-      vermelho (RN-11)
-- [ ] Teste: reclassificar de verde para laranja **preserva `entrou_em`**
-- [ ] Teste: vermelho vai direto a `EM_ATENDIMENTO`, sem fila
-- [ ] Teste: a triagem anterior continua legível após a reclassificação
+- [ ] `AtribuirProfissionalAction` e `TransferirFilaAction` — a transferência **preserva
+      `entrou_em`** e cria novo `fila_item` com `transferido_de_id`
+- [ ] Tela de atribuição (UC-05) com disponibilidade, quantidade aguardando, composição
+      da fila por cor, carga ponderada e espera estimada — mockup da doc §7.4
+- [ ] Sugestão automática do profissional de menor carga ponderada (RF-28)
+- [ ] Painel do profissional (RF-29) e sinalização de tempo-alvo excedido (RF-33)
+- [ ] `usePoll(10000, { only: ['fila'] })` (RF-34, RNF-03)
+- [ ] Estimativa de espera pela média móvel de 30 dias do próprio profissional por cor
+- [ ] Teste do cenário da doc §5.4.1: cinco pacientes em ordem inversa à prioridade
+- [ ] Teste: carga ponderada de 1 laranja + 1 amarelo + 2 verdes = 11
+- [ ] Teste: transferência entre filas não penaliza a posição

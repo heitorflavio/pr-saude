@@ -752,8 +752,12 @@ encontrou em um minuto o que a suíte não encontraria — é exatamente para is
 
 ## D-34 · A numeração do atendimento é sequencial por ano, **global entre unidades**
 
-**Origem:** contradição entre o prompt e o `schema.sql` · **Status:** ⚠️ divergência do
-prompt, com justificativa · **2026-08-18**
+**Origem:** contradição entre o prompt e o `schema.sql` · **Status:** ✅ **confirmada
+pelo usuário** · **2026-08-18**
+
+> **Decisão do usuário: manter a numeração global por ano.** Divergência consciente da
+> letra do prompt, para preservar o `UNIQUE (numero)` do schema, o formato documentado e
+> a não ambiguidade do número ditado entre setores.
 
 O prompt (Fase 5) pede numeração "sequencial por ano **e unidade** (`2026-000148`)". Isso
 é impossível de cumprir junto com o `schema.sql`, que declara:
@@ -782,9 +786,9 @@ recuperação **quando o QR falha** (doc §8.4) e é ditado por telefone entre s
 episódios diferentes com `2026-000001` em unidades distintas — situação corriqueira para
 um paciente transferido — seria pior que um contador por unidade.
 
-**Se a numeração por unidade for realmente desejada,** a mudança é de esquema: trocar
-`UNIQUE (numero)` por `UNIQUE (unidade_id, numero)`. Isso **requer decisão**, porque
-tornaria o número ambíguo fora do contexto da unidade.
+**A alternativa descartada:** trocar `UNIQUE (numero)` por `UNIQUE (unidade_id, numero)`
+tornaria o número ambíguo fora do contexto da unidade — e a pulseira imprime só o número
+(doc §8.4), sem a unidade ao lado.
 
 ---
 
@@ -804,3 +808,37 @@ importação de registro com data retroativa, e correção manual de horário no
 muito pior que gravar zero — o paciente ficaria preso no estado anterior, e a fila
 pararia de refletir a realidade. O zero é visivelmente errado num indicador; o
 atendimento travado é invisível até alguém reclamar.
+
+---
+
+## D-36 · `$dateFormat` com microssegundos nos models de coluna `DATETIME(6)`
+
+**Origem:** defeito encontrado por teste · **Status:** ✅ corrigida · **2026-08-18**
+
+O `schema.sql` declara nove colunas como `DATETIME(6)`, e a precisão de microssegundo
+**não é decorativa**. Ela é o que desempata registros criados dentro do mesmo segundo:
+
+| Coluna | O que a precisão sustenta |
+|---|---|
+| `fila_item.entrou_em` | RN-10 — desempate por ordem de chegada entre pacientes da mesma cor |
+| `triagem.criado_em` | a sequência de reclassificações (doc §7.5) |
+| `atendimento_status_historico.criado_em` | a ordem da linha do tempo (RF-22) |
+| `registro_clinico.criado_em` | a ordem do encadeamento de hash (doc §9.4) |
+| `administracao_medicamento.administrado_em` | a ordem das doses |
+
+**O defeito.** O `$dateFormat` padrão do Eloquent é `'Y-m-d H:i:s'` — ele **trunca os
+microssegundos na escrita**. Duas triagens criadas no mesmo segundo ficavam com
+`criado_em` idêntico, e `sortByDesc('criado_em')` passava a devolver ordem indefinida.
+
+O teste pegou isso pela cadeia de reclassificação: a triagem original aparecia antes da
+reclassificação no histórico.
+
+**A gravidade real é maior que o sintoma.** Numa fila com chegadas simultâneas — que é a
+regra em pronto-socorro, não a exceção — o desempate da RN-10 deixaria de ser
+determinístico. Dois pacientes verdes com o mesmo `entrou_em` seriam ordenados pelo que o
+MySQL devolvesse primeiro, e a ordem poderia mudar entre duas leituras da mesma fila.
+
+**Decisão.** `protected $dateFormat = 'Y-m-d H:i:s.u';` nos nove models. Todos têm
+`$timestamps = false`, então a mudança não afeta `created_at`/`updated_at` de mais
+ninguém. Colunas `DATETIME(0)` do mesmo model recebem o valor com fração e o MySQL
+arredonda, sem erro.

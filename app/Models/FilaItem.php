@@ -25,6 +25,18 @@ class FilaItem extends Model
 
     public $timestamps = false;
 
+    /**
+     * O schema.sql declara `entrou_em` como DATETIME(6) de proposito: e a precisao de
+     * microssegundo que desempata registros criados dentro do mesmo segundo -- ordem da
+     * linha do tempo, desempate por ordem de chegada na fila (RN-10), sequencia de
+     * reclassificacoes.
+     *
+     * O `$dateFormat` padrao do Laravel e 'Y-m-d H:i:s', que TRUNCA os microssegundos na
+     * escrita e anula a precisao que a coluna oferece. Sem esta linha, dois registros do
+     * mesmo segundo ficam com timestamp identico e a ordenacao vira indefinida.
+     */
+    protected $dateFormat = 'Y-m-d H:i:s.u';
+
     protected $fillable = [
         'atendimento_id', 'profissional_id', 'classificacao_risco_id', 'situacao',
         'entrou_em', 'chamado_em', 'saiu_em', 'transferido_de_id',

@@ -26,6 +26,18 @@ class ExameResultado extends Model
 
     public $timestamps = false;
 
+    /**
+     * O schema.sql declara `criado_em` como DATETIME(6) de proposito: e a precisao de
+     * microssegundo que desempata registros criados dentro do mesmo segundo -- ordem da
+     * linha do tempo, desempate por ordem de chegada na fila (RN-10), sequencia de
+     * reclassificacoes.
+     *
+     * O `$dateFormat` padrao do Laravel e 'Y-m-d H:i:s', que TRUNCA os microssegundos na
+     * escrita e anula a precisao que a coluna oferece. Sem esta linha, dois registros do
+     * mesmo segundo ficam com timestamp identico e a ordenacao vira indefinida.
+     */
+    protected $dateFormat = 'Y-m-d H:i:s.u';
+
     protected $fillable = [
         'exame_solicitacao_id', 'laudo', 'conclusao', 'possui_valor_critico',
         'executado_por', 'executado_em', 'liberado_por', 'liberado_em',
