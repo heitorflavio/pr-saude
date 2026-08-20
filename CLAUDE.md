@@ -87,8 +87,8 @@ Permission sozinha nunca basta para dado clínico.**
 - **Policies** (6): `PacientePolicy` (`verContexto`, `verMinimoVital`, `quebrarSigilo`),
   `AtendimentoPolicy`, `RegistroClinicoPolicy`, `PrescricaoPolicy`,
   `AdministracaoPolicy`, `ExameResultadoPolicy`.
-- **`Gate::before`** libera o `admin` — **exceto** `prontuario.quebra_sigilo`, que
-  permanece auditada mesmo para administrador.
+- **`Gate::before`** libera irrestritamente toda conta com `users.tipo = ADMIN`; as
+  invariantes clínicas e constraints do banco continuam obrigatórias (D-20).
 - **Global scope** `DoPacienteAutenticadoScope` nas entidades clínicas, para que um
   `where` esquecido não vaze dado de outro paciente (§12.1).
 - Regras contextuais que **não** são expressáveis como permission estática: RN-12

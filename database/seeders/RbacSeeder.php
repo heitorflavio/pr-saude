@@ -27,9 +27,9 @@ use Spatie\Permission\PermissionRegistrar;
  *    células "R (só o seu)" da doc §2.3 são garantidas por ausência de rota de escrita
  *    e por global scope, não por permissão.
  *
- * 2. `prontuario.quebra_sigilo` não é concedida ao `admin`. O Gate::before libera o
- *    admin para tudo, menos para ela -- quebra de sigilo permanece auditada mesmo para
- *    administrador, senão o controle de RN-28 teria um buraco do tamanho de uma conta.
+ * 2. A matriz continua fiel à doc §2.3, inclusive nas células do papel `admin`. O
+ *    acesso irrestrito da conta com `users.tipo = ADMIN` é uma regra global do Gate e
+ *    não altera os dados configuráveis do RBAC.
  */
 class RbacSeeder extends Seeder
 {
@@ -135,7 +135,7 @@ class RbacSeeder extends Seeder
             // ² Retificação não sobrescreve: cria adendo apontando para o retificado.
             'prontuario.retificar' => [self::ENF_T, self::ENF_A, self::MED],
 
-            // Regra transversal de RN-28 (break the glass). Sem `admin`, de propósito.
+            // Regra transversal de RN-28 (break the glass) para os demais perfis.
             'prontuario.quebra_sigilo' => [self::ENF_T, self::ENF_A, self::TEC, self::MED],
 
             // Prescrição de medicamento .................... — | — | R | R | C R U | — | R

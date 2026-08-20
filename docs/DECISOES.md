@@ -370,44 +370,30 @@ matriz completa exige a separação.
 
 ---
 
-## D-20 · `Gate::before` restrito ao domínio administrativo
+## D-20 · `Gate::before` irrestrito para o tipo `ADMIN`
 
-**Origem:** prescrito pelo prompt §5, **corrigido por decisão do usuário** ·
-**Status:** ✅ aplicada · **2026-08-18**
+**Origem:** prescrito pelo prompt §5, decisão do usuário atualizada ·
+**Status:** ✅ revisada · **2026-08-20**
 
 O prompt §5 manda: "`Gate::before` libera o `admin` — mas **não** para
 `prontuario.quebra_sigilo`". Implementado assim primeiro.
 
-**A tensão detectada.** A matriz da doc §2.3 dá ao administrador apenas **R** (leitura)
-nas linhas clínicas — prontuário, prescrição, administração de medicamento. A intenção do
-documento é clara: administrador configura o sistema, não pratica medicina. O
-`Gate::before` irrestrito concedia escrita clínica a ele.
+**Decisão atual.** Toda conta com `users.tipo = ADMIN` recebe `true` no `Gate::before`
+para qualquer permission ou ability de Policy, independentemente da role associada. Isso
+garante acesso a todas as funcionalidades inclusive quando o RBAC precisa ser reparado.
 
-**Decisão do usuário: restringir o atalho.** Ele agora vale apenas para:
+A matriz da doc §2.3 permanece sem alterações: ela continua descrevendo as permissões
+configuráveis das oito roles. O superacesso é uma propriedade do tipo da conta, não uma
+duplicação de todas as associações em `role_has_permissions`.
 
-| Domínio | Cobertura |
-|---|---|
-| Gestão de usuários | prefixo `usuario.` |
-| Catálogos | prefixo `catalogo_` |
-| Auditoria | prefixo `auditoria.` |
-| Cadastro de paciente | prefixo `paciente.` |
-| Ficha cadastral | ability de Policy `verContexto` (doc §13.5: o admin não tem vínculo assistencial com ninguém) |
+**Limite.** O atalho remove barreiras de autorização, mas não as invariantes clínicas,
+campos obrigatórios, máquinas de estado ou constraints do banco. Funcionalidades que
+registram autoria profissional ainda exigem um registro em `profissional` para produzir
+um ato válido e rastreável.
 
-`prontuario.quebra_sigilo` e `quebrarSigilo` continuam **fora do atalho mesmo dentro do
-domínio administrativo** — é o ponto inteiro do controle da RN-28.
-
-Todo o resto cai na verificação normal, e lá o admin tem exatamente o que a matriz
-semeou: **leitura** nas linhas clínicas, **nenhuma escrita**.
-
-**Motivo.** Um administrador de TI capaz de assinar evolução médica em nome próprio é um
-risco de integridade do prontuário que nenhuma auditoria posterior desfaz. O prompt vence
-o documento em caso de conflito, mas aqui o conflito era com uma regra de segurança
-assistencial, e o usuário optou por seguir o documento.
-
-**Provado por teste:** `AutorizacaoTest` verifica que o admin é negado em 14 escritas
-clínicas (`prontuario.criar_*`, `prescricao.criar`, `medicamento.administrar`,
-`triagem.classificar`, `atendimento.alterar_status`, `exame.executar`,
-`exame.liberar_resultado`, entre outras) e mantém a leitura que a matriz prevê.
+**Provado por teste:** `AutorizacaoTest` percorre todas as permissions semeadas e também
+abilities contextuais das Policies, incluindo quebra de sigilo. O teste usa uma conta
+ADMIN sem role para provar que o superacesso depende do tipo, não do RBAC.
 
 ---
 

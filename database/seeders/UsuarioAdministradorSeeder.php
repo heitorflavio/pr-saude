@@ -42,8 +42,8 @@ class UsuarioAdministradorSeeder extends Seeder
             ]
         );
 
-        // Depende do RbacSeeder ter rodado antes: sem a role, o admin não teria nem as
-        // permissões administrativas nem o atalho do Gate::before (D-20).
+        // Mantém a role para navegação e auditoria. A autorização irrestrita decorre do
+        // tipo ADMIN, portanto não depende desta associação (D-20).
         $admin->syncRoles(['admin']);
 
         $this->command?->info("Administrador criado. Login: {$login}");

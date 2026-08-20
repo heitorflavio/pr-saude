@@ -115,9 +115,8 @@ final class PacientePolicy
     /**
      * Quebra de sigilo: permitida com justificativa, sempre auditada (RN-28).
      *
-     * Note que o `admin` NÃO passa por aqui via Gate::before -- é a única exceção
-     * daquele atalho. Um administrador que precise ler prontuário deixa rastro como
-     * qualquer outro.
+     * Para os demais perfis, o acesso exige plantão e permission. O tipo ADMIN é
+     * autorizado globalmente pelo Gate (D-20).
      */
     public function quebrarSigilo(User $user, Paciente $paciente): bool
     {

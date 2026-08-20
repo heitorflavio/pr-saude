@@ -191,9 +191,9 @@ verificações de invariante:
   (`verContexto`, `verMinimoVital`, `quebrarSigilo`, `imprimirPulseira`),
   `AtendimentoPolicy` (RN-12 + a nota ¹ do laboratório), `RegistroClinicoPolicy`,
   `PrescricaoPolicy`, `AdministracaoPolicy` (RN-22), `ExameResultadoPolicy` (RN-24/RN-25).
-- `Gate::before` restrito ao domínio administrativo (`usuario.`, `catalogo_`,
-  `auditoria.`, `paciente.` e `verContexto`), com `prontuario.quebra_sigilo` fora dele
-  mesmo assim. O admin tem leitura clínica, nenhuma escrita — fiel à matriz (D-20).
+- `Gate::before` libera irrestritamente toda conta com `users.tipo = ADMIN`, inclusive
+  nas abilities contextuais. A matriz configurável das roles permanece fiel à doc §2.3
+  e as invariantes do domínio e do banco continuam obrigatórias (D-20, revisada).
 
 **Middlewares**
 
@@ -251,16 +251,15 @@ verificações de invariante:
 |---|---|
 | Removidos cadastro público e auto-exclusão de conta | D-18 |
 | `prontuario.criar` dividida em nota médica / evolução de enfermagem | D-19 |
-| `Gate::before` restrito ao domínio administrativo (correção aprovada) | D-20 |
+| `Gate::before` irrestrito para contas do tipo `ADMIN` | D-20 |
 | CI com service container MySQL | D-21 |
 | Inertia compartilha subconjunto do usuário, não o model | D-22 |
 | Equipe segue autenticando por e-mail, não por matrícula | D-23 |
 
 ### Pendências que a Fase 2 deixa em aberto
 
-1. ~~`Gate::before` permite ao admin escrever no prontuário~~ — **resolvido**: o atalho
-   ficou restrito ao domínio administrativo (D-20), e o admin é negado em 14 escritas
-   clínicas por teste.
+1. O alcance do `Gate::before` foi revisado em 2026-08-20: por decisão do usuário, toda
+   conta do tipo `ADMIN` tem acesso irrestrito às funcionalidades (D-20).
 2. **Login da equipe ainda é por e-mail** (D-23), não por `users.login`. Resolver quando
    existir a gestão de usuários da equipe.
 3. **A suíte leva ~90 s**, dominada pelo `RbacSeeder` rodando a cada teste (42 permissions
@@ -981,3 +980,20 @@ Fora das 13 fases: a raiz `/` ainda servia a página do starter kit. Registrado 
 contém nome de paciente / número de atendimento / token de pulseira, e toda rota citada na
 página existe — o `route()` do Ziggy derruba a tela inteira quando o nome não existe.
 Suíte completa: **338 testes, 1949 asserções**; ESLint e build verdes.
+
+---
+
+## ✅ Complemento — Superacesso do tipo ADMIN (2026-08-20)
+
+- `Gate::before` agora libera toda permission e ability de Policy para contas com
+  `users.tipo = ADMIN`, mesmo sem role associada.
+- A matriz das roles continua fiel à doc §2.3; possuir apenas a role `admin` em uma conta
+  profissional não concede superacesso.
+- A navegação já espelhava essa regra pelo campo `tipo`, portanto não exigiu alteração.
+- Invariantes clínicas, autoria profissional, máquinas de estado e constraints do banco
+  permanecem obrigatórias.
+
+### Testes
+
+`AutorizacaoTest` percorre as 42 permissions e abilities contextuais para o tipo ADMIN.
+Suíte completa: **337 testes, 1972 asserções**; Pint verde.
