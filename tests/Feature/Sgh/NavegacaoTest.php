@@ -43,6 +43,19 @@ it('todo item da barra lateral aponta para uma rota GET que existe', function ()
     expect($semRota)->toBe([], 'Itens da barra lateral sem rota: '.implode(', ', $semRota));
 });
 
+/**
+ * O caminho até a fila (UC-01 → UC-03 → UC-04) existia inteiro no servidor e era
+ * impercorrível na interface: a ficha do paciente não levava aos atendimentos, e o
+ * atendimento não levava à triagem. A única porta para a triagem era a própria fila --
+ * onde o paciente só aparece **depois** de triado. Um ciclo fechado.
+ */
+it('a ficha do paciente leva aos atendimentos, e o atendimento leva à triagem', function () {
+    expect(fonteDoComponente('resources/js/pages/Pacientes/Show.vue'))
+        ->toContain("route('atendimentos.index'")
+        ->and(fonteDoComponente('resources/js/pages/Atendimentos/Show.vue'))
+        ->toContain("route('triagem.edit'");
+});
+
 it('NavMain usa o contrato compartilhado de NavItem, sem redeclarar o campo', function () {
     $fonte = fonteDoComponente('resources/js/components/NavMain.vue');
 

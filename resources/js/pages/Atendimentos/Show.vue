@@ -91,8 +91,20 @@ const finalizar = () => formFinalizar.post(route('atendimentos.finalizar', props
                 </div>
                 <div class="flex flex-col items-end gap-2">
                     <BadgePrioridade :cor="prioridadeCor" :rotulo="prioridadeRotulo" />
-                    <!-- UC-08: a linha do tempo clínica fica a um clique da administrativa. -->
-                    <Link :href="route('prontuario.show', atendimento.id)" class="text-xs underline underline-offset-4">Prontuário</Link>
+                    <div class="flex gap-3 text-xs">
+                        <!--
+                          UC-04: é a triagem que coloca o paciente na fila — não existe
+                          "enviar para a fila" como ação separada, porque a posição deriva
+                          da classificação de risco (RN-10). Sem este link, a única porta
+                          para a triagem era a fila, onde o paciente só chega depois de
+                          triado: um ciclo fechado.
+                        -->
+                        <Link :href="route('triagem.edit', atendimento.id)" class="underline underline-offset-4">
+                            {{ prioridadeRotulo ? 'Triagem' : 'Classificar risco' }}
+                        </Link>
+                        <!-- UC-08: a linha do tempo clínica a um clique da administrativa. -->
+                        <Link :href="route('prontuario.show', atendimento.id)" class="underline underline-offset-4">Prontuário</Link>
+                    </div>
                 </div>
             </header>
 
