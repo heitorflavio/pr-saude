@@ -21,4 +21,9 @@ Route::middleware('auth')->group(function () {
 
     Route::post('atendimentos/{atendimento}/transferir', [FilaController::class, 'transferir'])
         ->name('fila.transferir');
+
+    // Chamar o paciente. Passa pela AlterarStatusAction: e transicao de status, nao um
+    // carimbo no fila_item -- RN-13 e RN-15 valem aqui como em qualquer outro caminho.
+    Route::post('atendimentos/{atendimento}/chamar', [FilaController::class, 'chamar'])
+        ->name('fila.chamar');
 });

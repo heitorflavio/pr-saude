@@ -17,12 +17,16 @@ use App\Http\Requests\Atendimento\FinalizarAtendimentoRequest;
 use App\Models\Atendimento;
 use App\Models\Paciente;
 use App\Models\Unidade;
+use App\Services\Atendimento\PainelAtendimentoService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 final class AtendimentoController extends Controller
 {
+    public function __construct(private readonly PainelAtendimentoService $painel) {}
+
     /** Visão operacional que evita passar pela busca de pacientes para retomar um caso. */
     public function geral(): Response
     {
@@ -78,7 +82,7 @@ final class AtendimentoController extends Controller
     }
 
     /** RF-22: linha do tempo consolidada do atendimento. */
-    public function show(Atendimento $atendimento): Response
+    public function show(Request $request, Atendimento $atendimento): Response
     {
         $this->authorize('view', $atendimento);
 
@@ -121,6 +125,15 @@ final class AtendimentoController extends Controller
              * responde "quanto tempo ele ficou parado em cada etapa?" (RF-39), que é a
              * pergunta que o indicador de qualidade da fila consome.
              */
+            /*
+             * O episódio inteiro em uma tela: o que cada módulo já tem e qual é o ato que
+             * o alimenta. Sem isto, mudar a situação para "aguardando exame" parecia não
+             * fazer nada — o pedido ao laboratório é outro ato, em outra tela, e nenhum
+             * link levava até lá.
+             */
+            'modulos' => $modulos = $this->painel->modulos($atendimento, $request->user()),
+            // A pendência que o estado atual está esperando, com o link do passo que falta.
+            'pendencia' => $this->painel->pendencia($atendimento, $modulos),
             'linhaDoTempo' => $atendimento->statusHistorico
                 ->sortBy('criado_em')
                 ->values()

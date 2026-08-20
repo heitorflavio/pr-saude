@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, router, usePage, usePoll } from '@inertiajs/vue3';
-import { AlertTriangle, Clock, Users } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { AlertTriangle, Clock, LoaderCircle, Users } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 
 /**
  * RF-29: painel do profissional.
@@ -52,6 +52,18 @@ usePoll(10000, { only: ['fila'] });
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Fila', href: '/fila' }];
 
 const alternar = (geral: boolean) => router.get(route('fila.index'), geral ? { fila: 'geral' } : {}, { preserveState: false });
+
+/*
+ * Chamar leva direto ao atendimento: quem chama vai atender agora, e cair de volta na
+ * fila obrigaria a procurar o paciente que acabou de sair dela.
+ */
+const chamando = ref<number | null>(null);
+
+const chamar = (atendimentoId: number) => {
+    chamando.value = atendimentoId;
+
+    router.post(route('fila.chamar', atendimentoId), {}, { onFinish: () => (chamando.value = null) });
+};
 </script>
 
 <template>
@@ -140,6 +152,22 @@ const alternar = (geral: boolean) => router.get(route('fila.index'), geral ? { f
                                 <span v-else class="text-xs text-muted-foreground">{{ item.situacao_rotulo }}</span>
                             </td>
                             <td class="px-4 py-3 text-right">
+                                <!--
+                                  UC-05: o ato que a fila existe para disparar. Sem ele o
+                                  painel era uma lista de espera sem porta de saída — o
+                                  profissional tinha de abrir o atendimento e mudar a
+                                  situação por lá, sem nada indicando esse caminho.
+                                -->
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    class="mr-3"
+                                    :disabled="chamando === item.atendimento_id"
+                                    @click="chamar(item.atendimento_id)"
+                                >
+                                    <LoaderCircle v-if="chamando === item.atendimento_id" class="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                                    Chamar
+                                </Button>
                                 <Link :href="`/atendimentos/${item.atendimento_id}`" class="text-xs font-medium underline underline-offset-4">
                                     Atendimento
                                 </Link>

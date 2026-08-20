@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import { ArrowRight, Clock, LoaderCircle } from 'lucide-vue-next';
+import { ArrowRight, Clock, LoaderCircle, TriangleAlert } from 'lucide-vue-next';
 import { computed } from 'vue';
 
 interface Alergia {
@@ -29,14 +29,34 @@ interface EventoLinhaDoTempo {
     permanencia: string | null;
 }
 
+/** Um módulo do episódio: o que ele já tem, e o ato que o alimenta. */
+interface Modulo {
+    rotulo: string;
+    href: string;
+    acao: string;
+    total: number;
+    resumo: string;
+    alerta?: boolean;
+    liberado: boolean;
+}
+
 const props = defineProps<{
     atendimento: Record<string, string | number | boolean | null | string[]>;
     paciente: { user_id: number; nome: string; data_nascimento: string | null; idade: string | null };
     alergias: Alergia[];
+    modulos: Record<string, Modulo>;
+    pendencia: { texto: string; acao: string; href: string } | null;
     linhaDoTempo: EventoLinhaDoTempo[];
     transicoesPermitidas: { valor: string; rotulo: string; terminal: boolean }[];
     desfechos: string[];
 }>();
+
+/*
+ * Só os módulos que o usuário pode abrir. Esconder é conveniência, não segurança — a
+ * autorização real está nas Policies; um card que leva a 403 gasta o clique de quem está
+ * no meio de um plantão.
+ */
+const modulosVisiveis = computed<Modulo[]>(() => Object.values(props.modulos).filter((modulo: Modulo) => modulo.liberado));
 
 const page = usePage<SharedData>();
 const status = computed(() => page.props.flash?.status);
@@ -89,24 +109,62 @@ const finalizar = () => formFinalizar.post(route('atendimentos.finalizar', props
                         Situação: <strong>{{ atendimento.status_rotulo }}</strong>
                     </p>
                 </div>
-                <div class="flex flex-col items-start gap-2 sm:items-end">
-                    <BadgePrioridade :cor="prioridadeCor" :rotulo="prioridadeRotulo" />
-                    <div class="flex flex-wrap gap-3 text-xs">
-                        <!--
-                          UC-04: é a triagem que coloca o paciente na fila — não existe
-                          "enviar para a fila" como ação separada, porque a posição deriva
-                          da classificação de risco (RN-10). Sem este link, a única porta
-                          para a triagem era a fila, onde o paciente só chega depois de
-                          triado: um ciclo fechado.
-                        -->
-                        <Link :href="route('triagem.edit', atendimento.id)" class="underline underline-offset-4">
-                            {{ prioridadeRotulo ? 'Triagem' : 'Classificar risco' }}
-                        </Link>
-                        <!-- UC-08: a linha do tempo clínica a um clique da administrativa. -->
-                        <Link :href="route('prontuario.show', atendimento.id)" class="underline underline-offset-4">Prontuário</Link>
-                    </div>
-                </div>
+                <BadgePrioridade :cor="prioridadeCor" :rotulo="prioridadeRotulo" />
             </header>
+
+            <!--
+              O que o estado atual está esperando.
+
+              "Aguardando medicação" sem nenhuma prescrição não é defeito do sistema: é um
+              passo que ninguém deu. Mudar a situação descreve onde o paciente está, não
+              cria prescrição nem pedido de exame — são atos à parte, e antes deste aviso
+              nada na tela dizia isso.
+            -->
+            <div
+                v-if="pendencia"
+                class="flex flex-wrap items-start justify-between gap-3 rounded-xl border-l-4 border-amber-600 bg-amber-50 px-4 py-3 dark:bg-amber-950/40"
+                role="status"
+            >
+                <p class="flex items-start gap-2 text-sm text-amber-900 dark:text-amber-100">
+                    <TriangleAlert class="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                    {{ pendencia.texto }}
+                </p>
+                <Link :href="pendencia.href">
+                    <Button type="button" size="sm">{{ pendencia.acao }}</Button>
+                </Link>
+            </div>
+
+            <!--
+              UC-04, UC-08, UC-09, UC-11: os módulos do episódio, cada um com o que já tem
+              e o ato que o alimenta. Esta seção é a que faltava: as telas de prescrição e
+              de solicitação de exame existiam sem nenhum link apontando para elas.
+            -->
+            <section class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <article
+                    v-for="modulo in modulosVisiveis"
+                    :key="modulo.rotulo"
+                    class="flex flex-col justify-between gap-3 rounded-xl border p-4"
+                    :class="
+                        modulo.alerta
+                            ? 'border-red-600/50 bg-red-50/60 dark:border-red-500/50 dark:bg-red-950/20'
+                            : 'border-sidebar-border/70 dark:border-sidebar-border'
+                    "
+                >
+                    <div>
+                        <h2 class="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                            {{ modulo.rotulo }}
+                            <span v-if="modulo.total > 0" class="rounded-full bg-neutral-200 px-2 py-0.5 text-xs dark:bg-neutral-700">
+                                {{ modulo.total }}
+                            </span>
+                        </h2>
+                        <p class="mt-1.5 text-sm" :class="modulo.alerta ? 'font-semibold text-red-800 dark:text-red-200' : ''">
+                            {{ modulo.resumo }}
+                        </p>
+                    </div>
+
+                    <Link :href="modulo.href" class="text-sm font-medium underline underline-offset-4">{{ modulo.acao }}</Link>
+                </article>
+            </section>
 
             <!-- RF-11: alergias em destaque em TODA tela do atendimento. -->
             <PainelAlergias :alergias="alergias" />

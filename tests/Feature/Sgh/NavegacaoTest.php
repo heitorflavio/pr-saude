@@ -49,11 +49,15 @@ it('todo item da barra lateral aponta para uma rota GET que existe', function ()
  * atendimento não levava à triagem. A única porta para a triagem era a própria fila --
  * onde o paciente só aparece **depois** de triado. Um ciclo fechado.
  */
-it('a ficha do paciente leva aos atendimentos, e o atendimento leva à triagem', function () {
+it('a ficha do paciente leva aos atendimentos', function () {
+    /*
+     * A metade que cobria "o atendimento leva à triagem" saiu daqui de propósito: o link
+     * deixou de ser markup fixo e passa a vir do servidor, em `modulos.triagem.href`.
+     * Quem garante isso agora é o FluxoAtendimentoTest, que verifica a prop -- asserção
+     * sobre comportamento, não sobre a string do template.
+     */
     expect(fonteDoComponente('resources/js/pages/Pacientes/Show.vue'))
-        ->toContain("route('atendimentos.index'")
-        ->and(fonteDoComponente('resources/js/pages/Atendimentos/Show.vue'))
-        ->toContain("route('triagem.edit'");
+        ->toContain("route('atendimentos.index'");
 });
 
 it('oferece atendimentos como secao propria e liga a fila ao caso', function () {

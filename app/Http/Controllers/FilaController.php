@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Actions\Atendimento\AlterarStatusAction;
 use App\Actions\Fila\AtribuirProfissionalAction;
 use App\Actions\Fila\TransferirFilaAction;
+use App\Enums\StatusAtendimento;
 use App\Exceptions\DominioException;
 use App\Http\Requests\Fila\AtribuirProfissionalRequest;
 use App\Http\Requests\Fila\TransferirFilaRequest;
@@ -102,6 +104,41 @@ final class FilaController extends Controller
 
         return redirect()->route('fila.index')
             ->with('status', "Paciente atribuído a {$profissional->nome_completo}.");
+    }
+
+    /**
+     * UC-05 — chamar o paciente: o passo que faltava para a fila ser operável.
+     *
+     * A fila mostrava quem esperava e não oferecia o ato de atender. O profissional
+     * precisava abrir o atendimento e mudar a situação por lá, e como nada na fila
+     * indicava isso, o painel parecia uma lista que não fazia nada.
+     *
+     * Chamar é uma transição de status como qualquer outra — por isso passa pela
+     * `AlterarStatusAction`, que valida RN-13, registra o histórico (RN-15) e sincroniza
+     * o `fila_item`. Um `update` direto aqui contornaria os três.
+     */
+    public function chamar(
+        Request $request,
+        Atendimento $atendimento,
+        AlterarStatusAction $alterarStatus,
+    ): RedirectResponse {
+        // RN-12: só o responsável -- ou um supervisor -- muda o status deste atendimento.
+        $this->authorize('alterarStatus', [$atendimento, StatusAtendimento::EmAtendimento]);
+
+        try {
+            $alterarStatus->execute(
+                atendimento: $atendimento,
+                novoStatus: StatusAtendimento::EmAtendimento,
+                autor: $request->user(),
+                observacao: 'Paciente chamado pelo painel da fila.',
+            );
+        } catch (DominioException $e) {
+            return back()->withErrors(['fila' => $e->getMessage()]);
+        }
+
+        return redirect()
+            ->route('atendimentos.show', $atendimento->id)
+            ->with('status', 'Paciente chamado. O atendimento está em curso e ele saiu da fila de espera.');
     }
 
     public function transferir(
