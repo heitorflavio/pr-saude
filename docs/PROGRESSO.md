@@ -803,13 +803,14 @@ asserções**; build Vite e lint verdes.
   as únicas escritas são a troca da própria senha e o logout.
 - `DoPacienteAutenticadoScope` cobre atendimentos, registros, diagnósticos, prescrições,
   doses e exames pelos respectivos caminhos relacionais. UUID de outro paciente vira 404.
-- Primeiro acesso exige CPF, senha provisória dentro de 72 horas, atendimento ativo e o
-  token opaco lido da pulseira. O fator permanece na sessão somente até a troca de senha.
-- Erro uniforme e verificação Argon2id de custo uniforme evitam enumeração de CPF;
-  limitação por IP e bloqueio progressivo da conta aplicam 1 min, 15 min, 1 h e bloqueio
-  até intervenção da recepção.
+- Primeiro acesso exige CPF e senha provisória dentro de 72 horas do cadastro. Não exige
+  posse da pulseira (M-3 removida, D-61) nem atendimento aberto (M-9 removida, D-63).
+- Erro uniforme e verificação Argon2id de custo uniforme evitam enumeração de CPF. A
+  contenção de força bruta é só o limite por IP (M-5): 30 tentativas por 15 min. O
+  bloqueio progressivo da conta **não** existe mais — M-4/RNF-08 removidas (D-62).
 - Troca obrigatória recusa senha curta, comum, igual à atual, CPF e variações da data de
-  nascimento; o acesso definitivo expira 30 dias após a alta.
+  nascimento. O acesso definitivo não expira mais: acompanha o cadastro, não o episódio
+  (D-63). Só a desativação da conta na recepção encerra o acesso.
 - Toda tentativa é auditada com CPF mascarado e o sucesso emite `AcessoPortalRealizado`
   como ponto de integração da notificação M-8.
 - Telas acessíveis de acompanhamento, atendimento, medicamentos, exames e histórico usam
@@ -821,7 +822,7 @@ asserções**; build Vite e lint verdes.
 
 | Critério | Estado |
 |---|---|
-| Fator da pulseira obrigatório no primeiro acesso | ✅ |
+| Fator da pulseira obrigatório no primeiro acesso | ❌ removido por decisão de produto (D-61) |
 | CPF inexistente e senha errada são indistinguíveis | ✅ |
 | Paciente A não acessa atendimento do paciente B | ✅ |
 | Resultado não liberado e registro sigiloso não vazam conteúdo | ✅ |

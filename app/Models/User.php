@@ -76,12 +76,6 @@ class User extends Authenticatable
         return $this->hasOne(Profissional::class, 'user_id');
     }
 
-    /** RNF-08: conta bloqueada por tentativas falhas sucessivas. */
-    public function estaBloqueado(): bool
-    {
-        return $this->bloqueado_ate !== null && $this->bloqueado_ate->isFuture();
-    }
-
     public function ehAdmin(): bool
     {
         return $this->tipo === 'ADMIN';

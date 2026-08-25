@@ -71,13 +71,4 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => ['ativo' => false]);
     }
-
-    /** RNF-08: conta bloqueada por tentativas falhas sucessivas. */
-    public function bloqueado(): static
-    {
-        return $this->state(fn (array $attributes) => [
-            'tentativas_falhas' => 5,
-            'bloqueado_ate' => now()->addMinutes(15),
-        ]);
-    }
 }

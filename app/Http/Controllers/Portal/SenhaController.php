@@ -54,10 +54,7 @@ final class SenhaController extends Controller
             'password' => $senha,
             'senha_provisoria' => false,
             'senha_alterada_em' => now(),
-            'tentativas_falhas' => 0,
-            'bloqueado_ate' => null,
         ]);
-        $request->session()->forget('portal.pulseira_token');
         $request->session()->regenerate();
 
         $this->auditoria->registrar(

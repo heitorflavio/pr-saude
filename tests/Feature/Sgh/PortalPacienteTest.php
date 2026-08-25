@@ -39,31 +39,26 @@ beforeEach(function () {
     ]);
 });
 
-function lerPulseiraEEntrar(object $teste, ?string $senha = null)
+function entrarNoPortal(object $teste, ?string $senha = null)
 {
-    $teste->get(route('pulseira.resolver', $teste->pacientePortal->token_pulseira))
-        ->assertRedirect(route('portal.login'));
-
     return $teste->post(route('portal.autenticar'), [
         'cpf' => $teste->cpf,
         'senha' => $senha ?? $teste->senhaInicial,
     ]);
 }
 
-it('primeiro acesso exige token válido da pulseira na sessão', function () {
-    $this->post(route('portal.autenticar'), ['cpf' => $this->cpf, 'senha' => $this->senhaInicial])
-        ->assertSessionHasErrors(['cpf' => 'No primeiro acesso, escaneie o QR Code da sua pulseira.']);
-
-    lerPulseiraEEntrar($this)->assertRedirect(route('portal.senha'));
+// D-61: o primeiro acesso não exige mais a posse da pulseira (M-3 removida).
+it('primeiro acesso entra só com CPF e senha inicial e cai na troca de senha', function () {
+    entrarNoPortal($this)->assertRedirect(route('portal.senha'));
     $this->assertAuthenticatedAs($this->usuarioPaciente, 'paciente');
 });
 
-it('o fator de posse sobrevive ao GET do formulário até o POST de login', function () {
-    $this->get(route('pulseira.resolver', $this->pacientePortal->token_pulseira));
-    $this->get(route('portal.login'))->assertOk();
+it('a leitura da pulseira sem sessão redireciona ao login sem guardar fator de posse', function () {
+    $this->get(route('pulseira.resolver', $this->pacientePortal->token_pulseira))
+        ->assertRedirect(route('portal.login'))
+        ->assertSessionMissing('portal.pulseira_token');
 
-    $this->post(route('portal.autenticar'), ['cpf' => $this->cpf, 'senha' => $this->senhaInicial])
-        ->assertRedirect(route('portal.senha'));
+    $this->get(route('portal.login'))->assertOk();
 });
 
 it('CPF inexistente e senha errada devolvem mensagem idêntica', function () {
@@ -74,14 +69,29 @@ it('CPF inexistente e senha errada devolvem mensagem idêntica', function () {
     $errada->assertSessionHasErrors(['cpf' => 'Credenciais inválidas.']);
 });
 
-it('bloqueia progressivamente a conta após três falhas', function () {
-    foreach (range(1, 3) as $_) {
+// D-62: a conta não é mais trancada por tentativas falhas (M-4 removida).
+it('falhas sucessivas não bloqueiam a conta e a senha correta continua entrando', function () {
+    foreach (range(1, 5) as $_) {
         $this->post(route('portal.autenticar'), ['cpf' => $this->cpf, 'senha' => 'errada']);
     }
 
-    expect($this->usuarioPaciente->fresh()->tentativas_falhas)->toBe(3)
-        ->and($this->usuarioPaciente->fresh()->bloqueado_ate)->not->toBeNull()
-        ->and($this->usuarioPaciente->fresh()->bloqueado_ate->isFuture())->toBeTrue();
+    $usuario = $this->usuarioPaciente->fresh();
+    expect($usuario->tentativas_falhas)->toBe(0)
+        ->and($usuario->bloqueado_ate)->toBeNull();
+
+    entrarNoPortal($this)->assertRedirect(route('portal.senha'));
+    $this->assertAuthenticatedAs($this->usuarioPaciente, 'paciente');
+});
+
+// M-5 é o que restou contendo força bruta: o limite continua por origem, não por conta.
+it('o limite por IP ainda barra varredura depois de trinta tentativas', function () {
+    foreach (range(1, 30) as $_) {
+        $this->post(route('portal.autenticar'), ['cpf' => $this->cpf, 'senha' => 'errada']);
+    }
+
+    $this->post(route('portal.autenticar'), ['cpf' => $this->cpf, 'senha' => $this->senhaInicial])
+        ->assertSessionHasErrors(['cpf' => 'Muitas tentativas. Aguarde e tente novamente ou procure a recepção.']);
+    $this->assertGuest('paciente');
 });
 
 it('audita toda tentativa e mascara o CPF', function () {
@@ -95,7 +105,7 @@ it('audita toda tentativa e mascara o CPF', function () {
 it('senha inicial expira após 72 horas', function () {
     $this->usuarioPaciente->forceFill(['created_at' => now()->subHours(73)])->save();
 
-    lerPulseiraEEntrar($this)
+    entrarNoPortal($this)
         ->assertSessionHasErrors(['cpf' => 'Senha inicial expirada. Solicite uma nova na recepção.']);
     $this->assertGuest('paciente');
 });
@@ -106,15 +116,13 @@ it('troca obrigatória recusa CPF, nascimento, senha comum e menos de oito carac
         ->assertSessionHasErrors('password');
 })->with(['52998224725', '14031985', '12345678', 'curta']);
 
-it('troca a senha provisória e remove o fator de posse da sessão', function () {
-    $response = $this->withSession(['portal.pulseira_token' => $this->pacientePortal->token_pulseira])
-        ->actingAs($this->usuarioPaciente, 'paciente')
+it('troca a senha provisória e renova a sessão', function () {
+    $response = $this->actingAs($this->usuarioPaciente, 'paciente')
         ->post(route('portal.senha.atualizar'), [
             'password' => 'NovaSenha#2026', 'password_confirmation' => 'NovaSenha#2026',
         ]);
 
-    $response->assertRedirect(route('portal.acompanhamento'))
-        ->assertSessionMissing('portal.pulseira_token');
+    $response->assertRedirect(route('portal.acompanhamento'));
 
     $usuario = $this->usuarioPaciente->fresh();
     expect($usuario->senha_provisoria)->toBeFalse()
@@ -123,21 +131,52 @@ it('troca a senha provisória e remove o fator de posse da sessão', function ()
 
 it('emite evento para notificação de acesso bem-sucedido', function () {
     Event::fake([AcessoPortalRealizado::class]);
-    lerPulseiraEEntrar($this);
+    entrarNoPortal($this);
     Event::assertDispatched(AcessoPortalRealizado::class);
 });
 
-it('acesso definitivo vale durante atendimento e por trinta dias após alta', function () {
+// D-63: o portal deixou de exigir atendimento. Estes três casos eram bloqueio antes.
+it('paciente sem nenhum atendimento entra no portal e vê a tela vazia', function () {
+    $semAtendimento = User::factory()->paciente()->create([
+        'login' => '11144477735', 'password' => '01011990', 'senha_provisoria' => true,
+    ]);
+    Paciente::factory()->create([
+        'user_id' => $semAtendimento->id, 'cpf' => '11144477735', 'data_nascimento' => '1990-01-01',
+    ]);
+
+    $this->post(route('portal.autenticar'), ['cpf' => '11144477735', 'senha' => '01011990'])
+        ->assertRedirect(route('portal.senha'));
+    $this->assertAuthenticatedAs($semAtendimento, 'paciente');
+
+    $semAtendimento->update(['senha_provisoria' => false]);
+    $this->actingAs($semAtendimento->fresh(), 'paciente')
+        ->get(route('portal.acompanhamento'))
+        ->assertOk()->assertInertia(fn ($page) => $page->where('atendimento', null));
+});
+
+it('acesso continua valendo muito depois da alta', function () {
+    $this->usuarioPaciente->update(['senha_provisoria' => false, 'password' => 'NovaSenha#2026']);
+    $this->atendimentoPortal->update([
+        'status' => StatusAtendimento::Finalizado, 'desfecho' => 'ALTA', 'finalizado_em' => now()->subDays(400),
+    ]);
+
+    $this->actingAs($this->usuarioPaciente->fresh(), 'paciente')
+        ->get(route('portal.acompanhamento'))->assertOk();
+});
+
+it('conta desativada é expulsa do portal na requisição seguinte', function () {
     $this->usuarioPaciente->update(['senha_provisoria' => false, 'password' => 'NovaSenha#2026']);
     $this->actingAs($this->usuarioPaciente->fresh(), 'paciente')->get(route('portal.acompanhamento'))->assertOk();
 
-    $this->atendimentoPortal->update([
-        'status' => StatusAtendimento::Finalizado, 'desfecho' => 'ALTA', 'finalizado_em' => now()->subDays(29),
-    ]);
-    expect($this->pacientePortal->possuiAcessoVigente())->toBeTrue();
+    $this->usuarioPaciente->update(['ativo' => false]);
 
-    $this->atendimentoPortal->update(['finalizado_em' => now()->subDays(31)]);
-    expect($this->pacientePortal->possuiAcessoVigente())->toBeFalse();
+    // `actingAs` fixa a instância em memória; a requisição real recarrega do provider,
+    // então o teste precisa reautenticar com o registro atualizado para valer alguma coisa.
+    $this->actingAs($this->usuarioPaciente->fresh(), 'paciente')
+        ->get(route('portal.acompanhamento'))
+        ->assertRedirect(route('portal.login'))
+        ->assertSessionHasErrors(['cpf' => 'O seu acesso ao portal foi desativado. Procure a recepção.']);
+    $this->assertGuest('paciente');
 });
 
 it('paciente A recebe 404 ao tentar UUID do atendimento do paciente B', function () {

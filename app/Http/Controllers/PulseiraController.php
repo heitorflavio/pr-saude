@@ -70,10 +70,9 @@ final class PulseiraController extends Controller
         //    existe. Redirecionar ANTES da consulta é o que impede o uso como oráculo:
         //    token existente e token inexistente produzem a mesma resposta.
         if ($usuario === null) {
-            // M-3: não é flash. O GET do formulário consumiria o flash antes do POST;
-            // o fator de posse precisa sobreviver até a autenticação.
-            $request->session()->put('portal.pulseira_token', $token);
-
+            // D-61: a leitura não guarda mais nada na sessão -- o primeiro acesso não
+            // exige a posse da pulseira. O redirecionamento continua sendo o que impede
+            // o uso da rota como oráculo de enumeração.
             return redirect()->route('portal.login')
                 ->with('status', 'Pulseira reconhecida. Informe seu CPF e sua senha.');
         }

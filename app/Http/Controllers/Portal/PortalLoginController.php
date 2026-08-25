@@ -22,9 +22,7 @@ final class PortalLoginController extends Controller
 
     public function form(): Response
     {
-        return Inertia::render('Portal/Login', [
-            'pulseiraLida' => session()->has('portal.pulseira_token'),
-        ]);
+        return Inertia::render('Portal/Login');
     }
 
     public function autenticar(Request $request): RedirectResponse
@@ -50,35 +48,30 @@ final class PortalLoginController extends Controller
         $hash = $usuario?->password ?? (string) config('portal.dummy_hash');
         $senhaCorreta = Hash::check((string) $dados['senha'], $hash);
 
-        if ($usuario === null || ! $senhaCorreta || ! $usuario->ativo || $usuario->estaBloqueado()) {
+        if ($usuario === null || ! $senhaCorreta || ! $usuario->ativo) {
             return $this->falha($request, $cpf, $usuario, $chaveIp);
         }
 
+        // D-63: a M-9 (portal só durante o episódio e 30 dias após a alta) foi removida.
+        // Resta exigir que a conta tenha de fato uma ficha de paciente por trás — um
+        // `users.tipo = PACIENTE` órfão não tem dado nenhum para mostrar.
         $paciente = $usuario->paciente;
-        if ($paciente === null || ! $paciente->possuiAcessoVigente()) {
-            $this->auditarTentativa('portal.login_falha', $cpf, $usuario, 'acesso_fora_da_janela');
+        if ($paciente === null) {
+            $this->auditarTentativa('portal.login_falha', $cpf, $usuario, 'sem_ficha_de_paciente');
 
             return back()->withErrors(['cpf' => 'Credenciais inválidas.']);
         }
 
-        if ($usuario->senha_provisoria) {
-            $tokenSessao = (string) $request->session()->get('portal.pulseira_token', '');
-            // M-3: comparação constante do fator de posse.
-            if ($tokenSessao === '' || ! hash_equals($paciente->token_pulseira, $tokenSessao)) {
-                $this->auditarTentativa('portal.login_falha', $cpf, $usuario, 'pulseira_ausente');
+        // D-61: a posse da pulseira (M-3) deixou de ser exigida no primeiro acesso. A
+        // janela de 72 h da senha provisória passa a ser a única barreira temporal, e a
+        // troca obrigatória (RN-06) segue valendo antes de qualquer tela do portal.
+        if ($usuario->senha_provisoria && ! $paciente->senhaProvisoriaVigente()) {
+            $this->auditarTentativa('portal.login_falha', $cpf, $usuario, 'senha_inicial_expirada');
 
-                return back()->withErrors(['cpf' => 'No primeiro acesso, escaneie o QR Code da sua pulseira.']);
-            }
-            if (! $paciente->senhaProvisoriaVigente()) {
-                $this->auditarTentativa('portal.login_falha', $cpf, $usuario, 'senha_inicial_expirada');
-
-                return back()->withErrors(['cpf' => 'Senha inicial expirada. Solicite uma nova na recepção.']);
-            }
+            return back()->withErrors(['cpf' => 'Senha inicial expirada. Solicite uma nova na recepção.']);
         }
 
-        $usuario->update([
-            'tentativas_falhas' => 0, 'bloqueado_ate' => null, 'ultimo_login_em' => now(),
-        ]);
+        $usuario->update(['ultimo_login_em' => now()]);
         RateLimiter::clear($chaveIp);
         Auth::guard('paciente')->login($usuario);
         $request->session()->regenerate();
@@ -105,24 +98,13 @@ final class PortalLoginController extends Controller
         $chaveIp ??= 'portal:ip:'.hash('sha256', (string) $request->ip());
         RateLimiter::hit($chaveIp, decaySeconds: 900);
 
-        if ($usuario !== null) {
-            $tentativas = $usuario->tentativas_falhas + 1;
-            $segundos = match (true) {
-                $tentativas >= 10 => 10 * 365 * 24 * 3600,
-                $tentativas >= 8 => 3600,
-                $tentativas >= 5 => 900,
-                $tentativas >= 3 => 60,
-                default => 0,
-            };
-            $usuario->update([
-                'tentativas_falhas' => $tentativas,
-                'bloqueado_ate' => $segundos > 0 ? now()->addSeconds($segundos) : null,
-            ]);
-        }
-
+        // D-62: o bloqueio progressivo da conta (M-4, RNF-08) foi removido. A contenção de
+        // força bruta passa a ser exclusivamente o limite por IP acima (M-5) -- que, ao
+        // contrário do bloqueio por conta, ninguém consegue disparar contra um paciente
+        // alheio só para trancá-lo fora do portal.
         $this->auditarTentativa('portal.login_falha', $cpf, $usuario, 'credenciais');
 
-        // M-6: idêntica para CPF inexistente, senha errada, conta inativa ou bloqueada.
+        // M-6: idêntica para CPF inexistente, senha errada e conta inativa.
         return back()->withErrors(['cpf' => 'Credenciais inválidas.']);
     }
 

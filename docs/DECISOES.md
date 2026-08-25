@@ -1089,7 +1089,7 @@ valendo as origens individuais de vínculo já existentes.
 
 ## D-50 · O fator da pulseira permanece na sessão até a troca de senha
 
-**Origem:** integração QR Code × primeiro acesso · **Status:** ✅ aplicada · **2026-08-20**
+**Origem:** integração QR Code × primeiro acesso · **Status:** ⛔ revertida por D-61 · **2026-08-20**
 
 O QR Code redireciona para um formulário GET antes do POST de autenticação. Dados
 armazenados com `flash()` podem ser consumidos ao renderizar esse formulário, eliminando
@@ -1304,3 +1304,138 @@ filho da ficha do paciente.
 A fila continua sendo a fonte da ordenação clínica da RN-10. A nova tela não calcula
 posição nem escolhe o próximo paciente: ela organiza casos por antiguidade para
 localização, enquanto `/fila` preserva prioridade clínica seguida de horário de entrada.
+
+---
+
+## D-61 · O primeiro acesso ao portal não exige mais a leitura da pulseira
+
+**Origem:** pedido de produto · **Status:** ✅ aplicada · **2026-08-25**
+
+A doc §12.2.3 define **M-3**: no primeiro acesso, além de CPF e da senha provisória
+`DDMMAAAA`, a sessão precisava carregar o `token_pulseira` lido do QR Code. Era o fator
+de posse que elevava a entropia efetiva do primeiro login de 15,3 para 146 bits.
+
+**Decisão.** A regra foi removida a pedido do cliente. O primeiro acesso passa a ser
+CPF + senha provisória, exatamente como qualquer acesso posterior.
+
+- `PortalLoginController::autenticar()` não confere mais `portal.pulseira_token`;
+  a mensagem "No primeiro acesso, escaneie o QR Code da sua pulseira." deixou de existir.
+- `PulseiraController::resolver()` não grava mais nada na sessão do visitante anônimo.
+  O redirecionamento para o login continua igual — ele é o que impede a rota `/p/{token}`
+  de funcionar como oráculo de enumeração, e essa propriedade não dependia de M-3.
+- `SenhaController` não precisa mais limpar o token da sessão. **D-50 fica sem objeto.**
+- A tela `Portal/Login` perdeu os dois avisos sobre a pulseira e a prop `pulseiraLida`.
+
+**Consequência de segurança, registrada de propósito.** Sem M-3, o primeiro acesso está
+protegido apenas por CPF + data de nascimento — dois dados que circulam fora do hospital.
+Quem conhecer os dois de um paciente internado entra no portal dele antes que ele entre.
+O que continua contendo o risco:
+
+| Controle | Efeito |
+|---|---|
+| Senha provisória válida por 72 h (RN-06) | fecha a janela de exposição |
+| Troca obrigatória no primeiro acesso (M-1) | a senha fraca vale um único login |
+| Acesso só durante o atendimento e até 30 dias após a alta | limita o alvo |
+| Erro uniforme + Argon2id de custo uniforme (M-6, M-7) | impede enumeração de CPF |
+| Limite por IP (M-5) | impede varredura de data de nascimento — ⚠️ o bloqueio por conta caiu em D-62 |
+| `AcessoPortalRealizado` (M-8) | o paciente é notificado do acesso |
+| Auditoria de toda tentativa com CPF mascarado (M-11) | o abuso fica rastreável |
+
+Se o risco residual for reavaliado, o caminho de volta mais barato **não** é restaurar
+M-3: é trocar a senha inicial `DDMMAAAA` por um segredo aleatório entregue na recepção.
+Isso resolve o mesmo problema sem depender de o paciente ter a pulseira à mão.
+
+O QR Code segue existindo para tudo o mais: identificação do paciente pela equipe,
+mínimo vital da doc §13.5 e atalho do paciente já autenticado para o próprio portal.
+
+---
+
+## D-62 · O portal não bloqueia mais a conta por tentativas falhas
+
+**Origem:** pedido de produto · **Status:** ✅ aplicada · **2026-08-25**
+
+A RNF-08 e a mitigação **M-4** da doc §12.2.3 previam bloqueio progressivo por conta:
+3 tentativas → 1 min · 5 → 15 min · 8 → 1 h · 10 → bloqueio até desbloqueio na recepção.
+O contador vivia em `users.tentativas_falhas` e `users.bloqueado_ate`.
+
+**Decisão.** A regra foi removida a pedido do cliente. Uma senha errada agora custa
+apenas uma entrada no `auditoria_log` e um *hit* no limitador por IP.
+
+- `PortalLoginController::falha()` não incrementa nem carimba nada; a conta nunca tranca.
+- `User::estaBloqueado()` e o *state* `UserFactory::bloqueado()` foram removidos — não
+  havia mais nenhum chamador.
+- `PortalLoginController` e `SenhaController` deixaram de zerar o contador no sucesso e
+  na troca de senha, porque não há mais o que zerar.
+- **As colunas continuam no `users`**, fiéis ao `schema.sql`, mas inertes. Restaurar a
+  regra é reescrever o bloco de `falha()`; nenhuma migration é necessária nos dois
+  sentidos.
+
+**O que sobra contendo força bruta.** A M-5 — limite por origem, 30 tentativas por
+janela de 15 min, chaveado por `sha256` do IP, com a mensagem própria "Muitas tentativas".
+Ela não foi tocada e continua coberta por teste.
+
+**Consequência de segurança, registrada de propósito.** Somada à D-61, esta remoção
+deixa o primeiro acesso do portal apreciavelmente mais fraco do que a doc §12.2.3
+projetou. O espaço de senha inicial `DDMMAAAA` tem ~36 500 combinações plausíveis; a
+30 tentativas por 15 min, uma única origem esgota isso em cerca de 13 dias, e um
+atacante distribuído por várias origens, em muito menos. Antes, a conta trancava na
+décima tentativa e o ataque morria ali.
+
+**Contrapartida real, que motiva a decisão.** O bloqueio por conta era também um vetor
+de negação de serviço: qualquer pessoa que soubesse o CPF de um paciente podia trancá-lo
+fora do portal com dez tentativas erradas, no meio do próprio atendimento. Trocar o
+bloqueio por conta pelo limite por origem elimina esse abuso.
+
+Se o risco de força bruta precisar ser fechado de novo, as duas saídas que **não**
+reintroduzem a negação de serviço são:
+
+1. senha inicial aleatória entregue na recepção, em vez de `DDMMAAAA` (fecha D-61 e D-62
+   de uma vez, e é a recomendação);
+2. atraso incremental na resposta por conta, sem nunca negar acesso definitivamente.
+
+---
+
+## D-63 · O portal do paciente não depende mais de atendimento aberto
+
+**Origem:** pedido de produto · **Status:** ✅ aplicada · **2026-08-25**
+
+A mitigação **M-9** da doc §12.2.3 recortava o portal no tempo: acesso durante o
+atendimento e por 30 dias após a alta. Quem tinha ficha mas nunca foi admitido não
+conseguia entrar — e o erro que recebia era o genérico "Credenciais inválidas." da M-6,
+sem pista nenhuma do motivo real.
+
+**Decisão.** O acesso ao portal passa a acompanhar o **cadastro**, não o episódio.
+Paciente cadastrado e conta ativa entram, tenham ou não atendimento.
+
+- `Paciente::possuiAcessoVigente()` foi **removido**. Era a expressão da M-9 e não
+  sobrou nenhum outro chamador.
+- `senhaProvisoriaVigente()` perdeu a cláusula `atendimentoAtivo() !== null`. As 72 h
+  contadas do cadastro continuam valendo; o recorte "e nunca após o episódio" da **M-2**
+  caiu junto, porque amarrar a senha inicial a um episódio inexistente travaria todo
+  paciente recém-cadastrado.
+- `PortalLoginController` agora só exige que o `users.tipo = PACIENTE` tenha uma ficha
+  de `paciente` por trás; o motivo auditado virou `sem_ficha_de_paciente`.
+- O middleware `AcessoPortalVigente` foi **mantido com outro conteúdo**: verifica
+  `users.ativo` por requisição. Sem ele, desativar uma conta na recepção não derrubaria
+  quem já estivesse navegando. A mensagem passou a ser "O seu acesso ao portal foi
+  desativado. Procure a recepção."
+
+**As telas já suportavam o caso vazio.** `AcompanhamentoController::index()` sempre
+tratou `atendimento` como anulável e `Portal/Acompanhamento.vue` já tinha o ramo
+"Nenhum atendimento em andamento". Medicamentos, exames e histórico saem vazios pelo
+global scope. Nenhuma tela precisou mudar.
+
+**Consequência de segurança.** A superfície do portal deixa de ser temporária e passa a
+ser permanente: toda conta de paciente já cadastrada fica exposta ao login para sempre,
+não só durante o episódio e os 30 dias seguintes. Combinado com D-61 (sem fator de posse)
+e D-62 (sem bloqueio de conta), é a terceira camada da §12.2.3 a sair — restam a M-5
+(limite por IP), M-6, M-7, M-1, M-8, M-11 e M-12.
+
+A senha inicial `DDMMAAAA` é agora o único segredo protegendo uma conta permanentemente
+acessível. **Trocá-la por um segredo aleatório entregue na recepção deixou de ser uma
+sugestão e passou a ser a correção pendente mais importante do portal** — ela sozinha
+recupera a maior parte do que D-61, D-62 e D-63 abriram, sem reintroduzir nem a
+dependência da pulseira, nem o bloqueio por conta, nem a janela do episódio.
+
+`config('portal.acesso_apos_alta_dias')` ficou sem uso; foi mantida em `config/portal.php`
+para não quebrar quem a leia, e volta a valer se a M-9 for restaurada.
